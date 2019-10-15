@@ -8,7 +8,7 @@ import time
 q = Questrade()
 #np.set_printoptions(threshold=np.inf)
 
-stock_of_interest = 'CVX'
+stock_of_interest = 'JNJ'
 stock_data = q.symbols_search(prefix = stock_of_interest)
 stock_Id = stock_data['symbols'][0]['symbolId']
 alphaVan_API = 'U4G0AXZ62E77Z161'
