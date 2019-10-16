@@ -123,7 +123,7 @@ def price_sorting_new(option_data, strike_date, stock_name):
 # call price is on rows, put price is on columns
 # first sheet is max increase, second sheet is max decrease
 def risk_analysis(sorted_prices, current_price, fixed_commission, contract_commission, final_prices, \
-num_call_buy = 1, num_put_buy = 1):
+num_call_sell = 1, num_put_sell = 1):
     max_increase_break = np.zeros((len(sorted_prices), len(sorted_prices)))
     max_decrease_break = np.zeros((len(sorted_prices), len(sorted_prices)))
     historical_return_avg = np.zeros((len(sorted_prices), len(sorted_prices)))
@@ -134,13 +134,19 @@ num_call_buy = 1, num_put_buy = 1):
         call_strike_price = sorted_prices[n,0]
         call_premium = sorted_prices[n,1]
         call_size = sorted_prices[n,2]
-        call_commission = fixed_commission + num_call_buy*contract_commission
+        if num_call_sell != 0:
+            call_commission = fixed_commission + num_call_sell*contract_commission
+        else:
+            call_commission = 0
         # The columns represent put prices
         for m in range(0,len(sorted_prices)):
             put_strike_price = sorted_prices[m,0]
             put_premium = sorted_prices[m,3]
             put_size = sorted_prices[m,4]
-            put_commission = fixed_commission + num_put_buy*contract_commission
+            if num_put_sell != 0:
+                put_commission = fixed_commission + num_put_sell*contract_commission
+            else:
+                put_commission = 0
             ###
             # Seeing if these options actually exist
             if (call_premium == None) or (put_premium == None):
@@ -150,7 +156,7 @@ num_call_buy = 1, num_put_buy = 1):
             # Seeing if the the combined premium price is enough to cover the call-put difference
             elif ((call_premium + put_premium) <= put_strike_price - call_strike_price \
             # Seeing if the combined premium prices is enough to cover the commission fees
-            or (call_premium*num_call_buy + put_premium*num_put_buy)*100 <= put_commission + call_commission):
+            or (call_premium*num_call_sell + put_premium*num_put_sell)*100 <= put_commission + call_commission):
                 max_increase_break[n,m] = None
                 max_decrease_break[n,m] = None
                 historical_return_avg[n,m] = None
@@ -161,11 +167,11 @@ num_call_buy = 1, num_put_buy = 1):
                                            current_price)/current_price
                 for p in range(0,len(final_prices)):
                     historical_return_avg[n,m] = historical_return_avg[n,m] \
-                    + (min(call_strike_price - final_prices[p], 0) + call_premium) * num_call_buy * 100 \
-                    + (min(final_prices[p] - put_strike_price, 0) + put_premium) * num_put_buy * 100
+                    + (min(call_strike_price - final_prices[p], 0) + call_premium) * num_call_sell * 100 \
+                    + (min(final_prices[p] - put_strike_price, 0) + put_premium) * num_put_sell * 100
                 historical_return_avg[n,m] = (1/len(final_prices))*historical_return_avg[n,m] - call_commission - put_commission
-                # The return avg is the average return for a set of contracts
-                historical_return_avg[n,m] = historical_return_avg[n,m]/((num_call_buy+num_put_buy)/2)
+                # The return avg is the average return per contract
+                historical_return_avg[n,m] = historical_return_avg[n,m]/(num_call_sell+num_put_sell)
     max_increase_decrease[0,:,:] = max_increase_break
     max_increase_decrease[1,:,:] = max_decrease_break
     [percent_change, historical_return_avg] = [max_increase_decrease, historical_return_avg]

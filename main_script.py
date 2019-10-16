@@ -8,7 +8,7 @@ import time
 q = Questrade()
 #np.set_printoptions(threshold=np.inf)
 
-stock_of_interest = 'JNJ'
+stock_of_interest = 'CVX'
 stock_data = q.symbols_search(prefix = stock_of_interest)
 stock_Id = stock_data['symbols'][0]['symbolId']
 alphaVan_API = 'U4G0AXZ62E77Z161'
@@ -32,7 +32,7 @@ expiry_dates_new = my_fun.date_convert(expiry_dates)
 
 
 #Should be: range(0,len(all_options_data))
-for n in range(0,len(all_options_data)):
+for n in range(len(all_options_data)-2,len(all_options_data)):
     # Gets the strike date and calculates the number of days till expiry
     # COULD ADD EXTRA 1 FOR THE WEEKEND!
     strike_date = expiry_dates_new[n]
@@ -49,7 +49,7 @@ for n in range(0,len(all_options_data)):
     # calculates the max gain and loss bearable
     [max_increase_decrease, hist_return_avg] = \
     my_fun.risk_analysis(sorted_prices, current_price, fixed_commission, contract_commission, hist_final_price, \
-    num_call_buy = 1, num_put_buy = 1)
+    num_call_sell = 0, num_put_sell = 1)
     # annualizes the risk based on the number of days till expiry
     max_per_annualized = my_fun.norm_percentage_annualized(max_increase_decrease, days_till_expiry, num_days_a_year)
     winning = my_fun.percent_chance_win(price_change_percent_annual, max_per_annualized)
