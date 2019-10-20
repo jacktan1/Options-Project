@@ -161,6 +161,7 @@ num_call_sell = 1, num_put_sell = 1):
                 max_decrease_break[n,m] = None
                 historical_return_avg[n,m] = None
             else:
+                # Needs to be edited to express different sell amounts for calls and puts
                 max_increase_break[n,m] = (call_strike_price + call_premium + put_premium - \
                                            current_price)/current_price
                 max_decrease_break[n,m] = (put_strike_price - call_premium - put_premium - \
