@@ -32,14 +32,11 @@ expiry_dates_new = my_fun.date_convert(expiry_dates)
 
 
 #Should be: range(0,len(all_options_data))
-for n in range(len(all_options_data)-2,len(all_options_data)):
+for n in range(1,len(all_options_data)):
     # Gets the strike date and calculates the number of days till expiry
     # COULD ADD EXTRA 1 FOR THE WEEKEND!
     strike_date = expiry_dates_new[n]
     days_till_expiry = np.busday_count(current_date, strike_date)
-    # takes historical prices, obtains the percent change over a certain time gap
-    # and annualizes it
-    price_change_percent_annual = my_fun.price_change_annualized(price_history, days_till_expiry, num_days_a_year)
     # Taking the percent change and applying to the current price
     hist_final_price = my_fun.historical_final_price(price_history, current_price, days_till_expiry)
     # extracting options data
@@ -47,13 +44,14 @@ for n in range(len(all_options_data)-2,len(all_options_data)):
     # sorted prices of options based on cost, call price and put price (in that order)
     sorted_prices = my_fun.price_sorting_new(daily_option_data, strike_date, stock_of_interest)
     # calculates the max gain and loss bearable
-    [max_increase_decrease, hist_return_avg] = \
-    my_fun.risk_analysis(sorted_prices, current_price, fixed_commission, contract_commission, hist_final_price, \
+    [percent_chance_in_money, historical_return_avg, risk_money] = \
+    my_fun.risk_analysis_v2(sorted_prices, current_price, fixed_commission, contract_commission, hist_final_price, \
     num_call_sell = 0, num_put_sell = 1)
-    # annualizes the risk based on the number of days till expiry
-    max_per_annualized = my_fun.norm_percentage_annualized(max_increase_decrease, days_till_expiry, num_days_a_year)
-    winning = my_fun.percent_chance_win(price_change_percent_annual, max_per_annualized)
     #my_fun.plot_heatmap(winning, sorted_prices, strike_date)
-    my_fun.plot_heatmap_v2(winning, sorted_prices, str(str(stock_of_interest) + '/' + str(strike_date) + '_risk_prob'))
-    my_fun.plot_heatmap_v2(hist_return_avg, sorted_prices, str(str(stock_of_interest) + '/' + str(strike_date) + '_returns'))
+    my_fun.plot_heatmap_v2(percent_chance_in_money, sorted_prices, \
+        str(str(stock_of_interest) + '/' + str(strike_date) + '_percent_chance_in_money'))
+    my_fun.plot_heatmap_v2(historical_return_avg, sorted_prices, \
+        str(str(stock_of_interest) + '/' + str(strike_date) + '_avg_returns'))
+    my_fun.plot_heatmap_v2(risk_money, sorted_prices, \
+        str(str(stock_of_interest) + '/' + str(strike_date) + '_safety_money'))
     print(time.time() - t)

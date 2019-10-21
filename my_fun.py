@@ -122,12 +122,11 @@ def price_sorting_new(option_data, strike_date, stock_name):
 # Calculates the max increase or decrease in stock price while remaining in safe zone.
 # call price is on rows, put price is on columns
 # first sheet is max increase, second sheet is max decrease
-def risk_analysis(sorted_prices, current_price, fixed_commission, contract_commission, final_prices, \
+def risk_analysis_v2(sorted_prices, current_price, fixed_commission, contract_commission, final_prices, \
 num_call_sell = 1, num_put_sell = 1):
-    max_increase_break = np.zeros((len(sorted_prices), len(sorted_prices)))
-    max_decrease_break = np.zeros((len(sorted_prices), len(sorted_prices)))
     historical_return_avg = np.zeros((len(sorted_prices), len(sorted_prices)))
-    max_increase_decrease = np.zeros((2, len(sorted_prices), len(sorted_prices)))
+    percent_chance_in_money = np.zeros((len(sorted_prices), len(sorted_prices)))
+    risk_money = np.zeros((len(sorted_prices), len(sorted_prices)))
     # The rows represent call prices
     for n in range(0,len(sorted_prices)):
         print(n)
@@ -140,6 +139,9 @@ num_call_sell = 1, num_put_sell = 1):
             call_commission = 0
         # The columns represent put prices
         for m in range(0,len(sorted_prices)):
+            # reinitialize
+            num_in_money = 0
+            ###
             put_strike_price = sorted_prices[m,0]
             put_premium = sorted_prices[m,3]
             put_size = sorted_prices[m,4]
@@ -148,54 +150,27 @@ num_call_sell = 1, num_put_sell = 1):
             else:
                 put_commission = 0
             ###
-            # Seeing if these options actually exist
-            if (call_premium == None) or (put_premium == None):
-                max_increase_break[n,m] = None
-                max_decrease_break[n,m] = None
-                historical_return_avg[n,m] = None
-            # Seeing if the the combined premium price is enough to cover the call-put difference
-            elif ((call_premium + put_premium) <= put_strike_price - call_strike_price \
-            # Seeing if the combined premium prices is enough to cover the commission fees
-            or (call_premium*num_call_sell + put_premium*num_put_sell)*100 <= put_commission + call_commission):
-                max_increase_break[n,m] = None
-                max_decrease_break[n,m] = None
+            # Seeing if these options actually exist (first 2)
+            # Seeing if the combined premium prices is enough to cover the commission fees (3)
+            if (call_premium == None) or (put_premium == None) or \
+            ((call_premium*num_call_sell + put_premium*num_put_sell)*100 <= put_commission + call_commission):
+                percent_chance_in_money[n,m] = None
                 historical_return_avg[n,m] = None
             else:
-                # Needs to be edited to express different sell amounts for calls and puts
-                max_increase_break[n,m] = (call_strike_price + call_premium + put_premium - \
-                                           current_price)/current_price
-                max_decrease_break[n,m] = (put_strike_price - call_premium - put_premium - \
-                                           current_price)/current_price
-                for p in range(0,len(final_prices)):
-                    historical_return_avg[n,m] = historical_return_avg[n,m] \
-                    + (min(call_strike_price - final_prices[p], 0) + call_premium) * num_call_sell * 100 \
-                    + (min(final_prices[p] - put_strike_price, 0) + put_premium) * num_put_sell * 100
-                historical_return_avg[n,m] = (1/len(final_prices))*historical_return_avg[n,m] - call_commission - put_commission
-                # The return avg is the average return per contract
-                historical_return_avg[n,m] = historical_return_avg[n,m]/(num_call_sell+num_put_sell)
-    max_increase_decrease[0,:,:] = max_increase_break
-    max_increase_decrease[1,:,:] = max_decrease_break
-    [percent_change, historical_return_avg] = [max_increase_decrease, historical_return_avg]
-    return [percent_change, historical_return_avg]
-
-### -------- ###
-
-# Converts to percent and annualizes the risk.
-def norm_percentage_annualized(max_increase_decrease, days_till_expiry, num_days_a_year):
-    percent_max = 100*np.array(max_increase_decrease)
-    max_in_de_annual = (num_days_a_year/int(days_till_expiry))*np.array(percent_max)
-    return max_in_de_annual
-
-### -------- ###
-
-# This function returns the percentage change of a stock over a set number of days. This is then
-# converted to percentage and averaged yearly
-def price_change_annualized(price_history, days_till_expiry, num_days_a_year):
-    price_change_matrix = np.zeros((int(len(price_history)-days_till_expiry), 1))
-    for n in range(0,len(price_change_matrix)):
-        holder = (price_history[n+days_till_expiry] - price_history[n])/price_history[n]
-        price_change_matrix[n] = holder*100*(num_days_a_year/days_till_expiry)
-    return price_change_matrix
+                call_return = (np.minimum(call_strike_price - final_prices, 0) + call_premium) * num_call_sell * 100 \
+                - call_commission
+                put_return = (np.minimum(final_prices - put_strike_price , 0) + put_premium) * num_put_sell * 100 \
+                - put_commission
+                return_per_contract = (call_return + put_return)/(num_call_sell + num_put_sell)
+                for j in range(0, len(return_per_contract)):
+                    if return_per_contract[j] > 0:
+                        num_in_money += 1
+                    else:
+                        risk_money[n,m] += return_per_contract[j]
+                historical_return_avg[n,m] = np.sum(return_per_contract)/len(return_per_contract)
+                percent_chance_in_money[n,m] = (num_in_money/len(return_per_contract)) * 100
+                risk_money[n,m] = risk_money[n,m]/(len(return_per_contract) - num_in_money)
+    return [percent_chance_in_money, historical_return_avg, risk_money]
 
 ### -------- ###
 
@@ -206,27 +181,6 @@ def historical_final_price(price_history, current_price, days_till_expiry):
         holder = (price_history[n+days_till_expiry] - price_history[n])/price_history[n]
         final_prices[n] = current_price*(1 + holder)
     return final_prices
-
-### -------- ###
-
-# This calculated the percentage chance of not exceeding the min and max limits of the stock.
-# This is done by sorting the prices and finding the percentage of observations that lie in
-# the middle
-def percent_chance_win(price_change_percent_annualzed, max_per_annualized):
-    winning = np.ones((len(max_per_annualized[0]),len(max_per_annualized[0])))
-    prices_sorted = price_change_percent_annualzed[price_change_percent_annualzed[:,0].argsort()]
-    for n in range (0, len(max_per_annualized[0])):
-        for m in range (0, len(max_per_annualized[0])):
-            max_increase = max_per_annualized[0,n,m]
-            max_decrease = max_per_annualized[1,n,m]
-            if (math.isnan(max_increase) == True) or (math.isnan(max_decrease) == True):
-                winning[n,m] = 0
-            else:
-                winning_range = np.where((prices_sorted > max_decrease) & \
-                                          (prices_sorted < max_increase))
-                percentile = (len(winning_range[0]))*100/len(prices_sorted)
-                winning[n,m] = percentile
-    return winning
 
 ### -------- ###
 
