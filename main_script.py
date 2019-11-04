@@ -15,6 +15,8 @@ alphaVan_API = 'U4G0AXZ62E77Z161'
 num_days_a_year = 252
 fixed_commission = 9.95
 contract_commission = 1
+call_sell_max = 10
+put_sell_max = 10
 
 ### --- Main Script --- ###
 
@@ -32,7 +34,7 @@ expiry_dates_new = my_fun.date_convert(expiry_dates)
 
 
 #Should be: range(0,len(all_options_data))
-for n in range(1,len(all_options_data)):
+for n in range(3, 4):
     # Gets the strike date and calculates the number of days till expiry
     # COULD ADD EXTRA 1 FOR THE WEEKEND!
     strike_date = expiry_dates_new[n]
@@ -42,16 +44,15 @@ for n in range(1,len(all_options_data)):
     # extracting options data
     daily_option_data = all_options_data[n]['chainPerRoot'][0]['chainPerStrikePrice']
     # sorted prices of options based on cost, call price and put price (in that order)
-    sorted_prices = my_fun.price_sorting_new(daily_option_data, strike_date, stock_of_interest)
+    sorted_prices = my_fun.price_sorting_v2(daily_option_data, strike_date, stock_of_interest)
     # calculates the max gain and loss bearable
     [percent_chance_in_money, historical_return_avg, risk_money] = \
-    my_fun.risk_analysis_v2(sorted_prices, current_price, fixed_commission, contract_commission, hist_final_price, \
-    num_call_sell = 0, num_put_sell = 1)
-    #my_fun.plot_heatmap(winning, sorted_prices, strike_date)
-    my_fun.plot_heatmap_v2(percent_chance_in_money, sorted_prices, \
-        str(str(stock_of_interest) + '/' + str(strike_date) + '_percent_chance_in_money'))
-    my_fun.plot_heatmap_v2(historical_return_avg, sorted_prices, \
-        str(str(stock_of_interest) + '/' + str(strike_date) + '_avg_returns'))
-    my_fun.plot_heatmap_v2(risk_money, sorted_prices, \
-        str(str(stock_of_interest) + '/' + str(strike_date) + '_safety_money'))
+    my_fun.risk_analysis_v3(sorted_prices, current_price, fixed_commission, contract_commission, hist_final_price, \
+    call_sell_max = 3, put_sell_max = 3)
+    # my_fun.plot_heatmap_v2(percent_chance_in_money, sorted_prices, \
+    #     str(str(stock_of_interest) + '/' + str(strike_date) + '_percent_chance_in_money'))
+    # my_fun.plot_heatmap_v2(historical_return_avg, sorted_prices, \
+    #     str(str(stock_of_interest) + '/' + str(strike_date) + '_avg_returns'))
+    # my_fun.plot_heatmap_v2(risk_money, sorted_prices, \
+    #     str(str(stock_of_interest) + '/' + str(strike_date) + '_safety_money'))
     print(time.time() - t)

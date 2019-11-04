@@ -72,7 +72,7 @@ def get_current_price(stock_symb, stock_Id):
 
 # When given the options data from a certain date, we use this function to arrange the data into
 # a "n by 5" array.
-def price_sorting_new(option_data, strike_date, stock_name):
+def price_sorting_v2(option_data, strike_date, stock_name):
     price_holder = np.zeros((len(option_data),5))
     #id_holder = np.zeros((2*len(option_data),1))
     id_holder = [0]*(2*len(option_data))
@@ -122,55 +122,76 @@ def price_sorting_new(option_data, strike_date, stock_name):
 # Calculates the max increase or decrease in stock price while remaining in safe zone.
 # call price is on rows, put price is on columns
 # first sheet is max increase, second sheet is max decrease
-def risk_analysis_v2(sorted_prices, current_price, fixed_commission, contract_commission, final_prices, \
-num_call_sell = 1, num_put_sell = 1):
-    historical_return_avg = np.zeros((len(sorted_prices), len(sorted_prices)))
-    percent_chance_in_money = np.zeros((len(sorted_prices), len(sorted_prices)))
-    risk_money = np.zeros((len(sorted_prices), len(sorted_prices)))
+def risk_analysis_v3(sorted_prices, current_price, fixed_commission, contract_commission, final_prices, \
+call_sell_max = 1, put_sell_max = 1):
+    historical_return_avg = np.zeros((len(sorted_prices), len(sorted_prices)), dtype = np.ndarray)
+    percent_in_money = np.zeros((len(sorted_prices), len(sorted_prices)), dtype = np.ndarray)
+    risk_money = np.zeros((len(sorted_prices), len(sorted_prices)), dtype = np.ndarray)
     # The rows represent call prices
     for n in range(0,len(sorted_prices)):
+        # Progress indicator
         print(n)
         call_strike_price = sorted_prices[n,0]
         call_premium = sorted_prices[n,1]
         call_size = sorted_prices[n,2]
-        if num_call_sell != 0:
-            call_commission = fixed_commission + num_call_sell*contract_commission
-        else:
-            call_commission = 0
         # The columns represent put prices
         for m in range(0,len(sorted_prices)):
-            # reinitialize
-            num_in_money = 0
+            # reinitilaizing the max call and put matrix
+            num_call_put_matrix = np.zeros((call_sell_max, put_sell_max))
+            # reinitilaizing other matrices
+            historical_return_avg_inner = np.zeros((call_sell_max + 1, put_sell_max + 1))
+            percent_in_money_inner = np.zeros((call_sell_max + 1, put_sell_max + 1))
+            risk_money_inner = np.zeros((call_sell_max + 1, put_sell_max + 1))
             ###
             put_strike_price = sorted_prices[m,0]
             put_premium = sorted_prices[m,3]
             put_size = sorted_prices[m,4]
-            if num_put_sell != 0:
-                put_commission = fixed_commission + num_put_sell*contract_commission
-            else:
-                put_commission = 0
             ###
-            # Seeing if these options actually exist (first 2)
-            # Seeing if the combined premium prices is enough to cover the commission fees (3)
-            if (call_premium == None) or (put_premium == None) or \
-            ((call_premium*num_call_sell + put_premium*num_put_sell)*100 <= put_commission + call_commission):
-                percent_chance_in_money[n,m] = None
+            # Seeing if these options actually exist
+            if (call_premium == None) or (put_premium == None):
+                percent_in_money[n,m] = None
                 historical_return_avg[n,m] = None
             else:
-                call_return = (np.minimum(call_strike_price - final_prices, 0) + call_premium) * num_call_sell * 100 \
-                - call_commission
-                put_return = (np.minimum(final_prices - put_strike_price , 0) + put_premium) * num_put_sell * 100 \
-                - put_commission
-                return_per_contract = (call_return + put_return)/(num_call_sell + num_put_sell)
-                for j in range(0, len(return_per_contract)):
-                    if return_per_contract[j] > 0:
-                        num_in_money += 1
-                    else:
-                        risk_money[n,m] += return_per_contract[j]
-                historical_return_avg[n,m] = np.sum(return_per_contract)/len(return_per_contract)
-                percent_chance_in_money[n,m] = (num_in_money/len(return_per_contract)) * 100
-                risk_money[n,m] = risk_money[n,m]/(len(return_per_contract) - num_in_money)
-    return [percent_chance_in_money, historical_return_avg, risk_money]
+                # Calls
+                call_base = np.minimum(call_strike_price - final_prices, 0) + call_premium
+                call_num_matrix = np.arange(0, call_sell_max + 1, 1).reshape(1, call_sell_max + 1)
+                call_comm_matrix = fixed_commission + call_num_matrix * contract_commission
+                call_comm_matrix[0][0] = 0
+                call_return = call_base * call_num_matrix * 100 - call_comm_matrix
+
+                # Puts
+                put_base = np.minimum(final_prices - put_strike_price , 0) + put_premium
+                put_num_matrix = np.arange(0, put_sell_max + 1, 1).reshape(1, put_sell_max + 1)
+                put_comm_matrix = fixed_commission + put_num_matrix * contract_commission
+                put_comm_matrix[0][0] = 0
+                put_return = put_base * put_num_matrix * 100 - put_comm_matrix
+
+                for aa in range(0, call_sell_max + 1):
+                    for bb in range(0, put_sell_max + 1):
+                        # reinitialize parameter to calculate percentage chance to be in money
+                        num_in_money = 0
+                        risk_money_holder = 0
+                        if (aa == 0) & (bb == 0):
+                            historical_return_avg_inner[aa, bb] = 0
+                            percent_in_money_inner[aa, bb] = 0
+                            risk_money_inner[aa, bb] = 0
+                        else:
+                            total_call_put = (call_return[:,aa] + put_return[:,bb])/(aa + bb)
+                            for cc in range(0, len(total_call_put)):
+                                if total_call_put[cc] > 0:
+                                    num_in_money += 1
+                                else:
+                                    risk_money_holder += total_call_put[cc]
+
+                            historical_return_avg_inner[aa, bb] = np.sum(total_call_put)/len(total_call_put)
+                            percent_in_money_inner[aa, bb] = (num_in_money/len(total_call_put)) * 100
+                            risk_money_inner[aa, bb] = risk_money_holder/(len(total_call_put) - num_in_money)
+
+                historical_return_avg[n, m] = historical_return_avg_inner
+                percent_in_money[n, m] = percent_in_money_inner
+                risk_money[n, m] = risk_money_inner
+
+    return [percent_in_money, historical_return_avg, risk_money]
 
 ### -------- ###
 

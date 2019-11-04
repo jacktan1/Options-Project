@@ -112,6 +112,61 @@ num_call_sell = 1, num_put_sell = 1):
 
 ### -------- ###
 
+# Calculates the max increase or decrease in stock price while remaining in safe zone.
+# call price is on rows, put price is on columns
+# first sheet is max increase, second sheet is max decrease
+def risk_analysis_v2(sorted_prices, current_price, fixed_commission, contract_commission, final_prices, \
+num_call_sell = 1, num_put_sell = 1):
+    historical_return_avg = np.zeros((len(sorted_prices), len(sorted_prices)))
+    percent_chance_in_money = np.zeros((len(sorted_prices), len(sorted_prices)))
+    risk_money = np.zeros((len(sorted_prices), len(sorted_prices)))
+    # The rows represent call prices
+    for n in range(0,len(sorted_prices)):
+        print(n)
+        call_strike_price = sorted_prices[n,0]
+        call_premium = sorted_prices[n,1]
+        call_size = sorted_prices[n,2]
+        if num_call_sell != 0:
+            call_commission = fixed_commission + num_call_sell*contract_commission
+        else:
+            call_commission = 0
+        # The columns represent put prices
+        for m in range(0,len(sorted_prices)):
+            # reinitialize
+            num_in_money = 0
+            ###
+            put_strike_price = sorted_prices[m,0]
+            put_premium = sorted_prices[m,3]
+            put_size = sorted_prices[m,4]
+            if num_put_sell != 0:
+                put_commission = fixed_commission + num_put_sell*contract_commission
+            else:
+                put_commission = 0
+            ###
+            # Seeing if these options actually exist (first 2)
+            # Seeing if the combined premium prices is enough to cover the commission fees (3)
+            if (call_premium == None) or (put_premium == None) or \
+            ((call_premium*num_call_sell + put_premium*num_put_sell)*100 <= put_commission + call_commission):
+                percent_chance_in_money[n,m] = None
+                historical_return_avg[n,m] = None
+            else:
+                call_return = (np.minimum(call_strike_price - final_prices, 0) + call_premium) * num_call_sell * 100 \
+                - call_commission
+                put_return = (np.minimum(final_prices - put_strike_price , 0) + put_premium) * num_put_sell * 100 \
+                - put_commission
+                return_per_contract = (call_return + put_return)/(num_call_sell + num_put_sell)
+                for j in range(0, len(return_per_contract)):
+                    if return_per_contract[j] > 0:
+                        num_in_money += 1
+                    else:
+                        risk_money[n,m] += return_per_contract[j]
+                historical_return_avg[n,m] = np.sum(return_per_contract)/len(return_per_contract)
+                percent_chance_in_money[n,m] = (num_in_money/len(return_per_contract)) * 100
+                risk_money[n,m] = risk_money[n,m]/(len(return_per_contract) - num_in_money)
+    return [percent_chance_in_money, historical_return_avg, risk_money]
+
+### -------- ###
+
 # Converts to percent and annualizes the risk.
 def norm_percentage_annualized(max_increase_decrease, days_till_expiry, num_days_a_year):
     percent_max = 100*np.array(max_increase_decrease)
