@@ -185,7 +185,10 @@ call_sell_max = 1, put_sell_max = 1):
 
                             historical_return_avg_inner[aa, bb] = np.sum(total_call_put)/len(total_call_put)
                             percent_in_money_inner[aa, bb] = (num_in_money/len(total_call_put)) * 100
-                            risk_money_inner[aa, bb] = risk_money_holder/(len(total_call_put) - num_in_money)
+                            if (len(total_call_put) - num_in_money) == 0:
+                                risk_money_inner[aa, bb] = 0
+                            else:
+                                risk_money_inner[aa, bb] = risk_money_holder/(len(total_call_put) - num_in_money)
 
                 historical_return_avg[n, m] = historical_return_avg_inner
                 percent_in_money[n, m] = percent_in_money_inner
