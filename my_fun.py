@@ -106,7 +106,8 @@ def price_sorting_v2(option_data, strike_date, stock_name):
     if data_down == len(price_holder):
         print('Questrade data is down! Trying to pull most recent data...')
         try:
-            price_holder = np.loadtxt(str('bid_history/' + str(stock_name) + '/'  + str(str(strike_date) + '.csv')), delimiter=',')
+            price_holder = np.loadtxt(str('bid_history/' + str(stock_name) + '/'  + str(str(strike_date) + '.csv')),\
+            delimiter=',')
             print('Loaded local data!')
         except Exception as e:
             print('Most recent data not found!')
@@ -166,7 +167,9 @@ call_sell_max = 1, put_sell_max = 1):
                 put_comm_matrix[0][0] = 0
                 put_return = put_base * put_num_matrix * 100 - put_comm_matrix
 
+                # The inner matrix rows will represent number of call contracts to sell
                 for aa in range(0, call_sell_max + 1):
+                    # The inner matrix columns will represent number of put contracts to sell
                     for bb in range(0, put_sell_max + 1):
                         # reinitialize parameter to calculate percentage chance to be in money
                         num_in_money = 0
@@ -208,74 +211,48 @@ def historical_final_price(price_history, current_price, days_till_expiry):
 
 ### -------- ###
 
-# This map creates a heat map of the winning probabilities
-def plot_heatmap(winning, sorted_prices, title_name):
-    # x-axis are put prices
-    x_axis = sorted_prices[:,0]
-    # y-axis are call prices
-    y_axis = sorted_prices[:,0]
-    heatmap_data = winning
-
-    fig, ax = plt.subplots(figsize = (13,9))
-    im = ax.imshow(heatmap_data)
-
-    # Create colorbar
-    fig.colorbar(im, ax=ax)
-
-    # We want to show all ticks
-    ax.set_xticks(np.arange(len(x_axis)))
-    ax.set_yticks(np.arange(len(y_axis)))
-    # ... and label them with the respective list entries
-    ax.set_xticklabels(x_axis)
-    ax.set_yticklabels(y_axis)
-
-    # Rotate the tick labels and set their alignment.
-    plt.setp(ax.get_xticklabels(), rotation=90, ha="right",
-             rotation_mode="anchor")
-
-    # Loop over data dimensions and create text annotations.
-    for n in range(len(y_axis)):
-        for m in range(len(x_axis)):
-            text = ax.text(m, n, round(winning[n, m],1), \
-                           ha="center", va="center", color="w", fontsize = 5)
-
-    ax.set_title(str(title_name))
-    ax.set_xlabel('Put Price', fontsize = 16)
-    ax.set_ylabel('Call Price', fontsize = 16)
-    fig.tight_layout()
-    plt.show()
+# This function multiplies the percentage of winning with the average profit per contract
+# and returns the top choices. If better than current top choices, it will update.
+def find_best(best_returns, percent_in_money, historical_return_avg, sorted_prices, strike_date_index, days_till_expiry):
+    [list_len, list_width] = best_returns.shape
+    [nrows, ncols] = percent_in_money.shape
+    for n in range(nrows):
+        for m in range(ncols):
+            daily_info = percent_in_money[n, m] * historical_return_avg[n, m] * 0.01 * (1/days_till_expiry)
+            daily_returns = np.append(np.ndarray.flatten(daily_info), np.array(best_returns[:, 0]))
+            daily_returns = np.array([x for x in daily_returns if str(x) != 'nan'])
+            new_best = sorted((daily_returns[np.argpartition(daily_returns, (-list_len))][(-list_len):]), \
+            reverse = True)
+            # See if there has been any changes to the best returns matrix
+            if (new_best == list(best_returns[:, 0])):
+                continue
+            else:
+                different_elements = list()
+                for aa in range(list_len):
+                    if ((new_best[aa] in best_returns) == False):
+                        different_elements.append(new_best[aa])
+                best_returns_holder = np.zeros((list_len, list_width))
+                best_returns_holder[0:(list_len - len(different_elements))] = \
+                best_returns[0:(list_len - len(different_elements))]
+                for bb in range(len(different_elements)):
+                    [call_row, put_col] = np.where(daily_info == different_elements[bb])
+                    # Order is 'percent chance * avg return per contract per day', strike date,
+                    # call price, number calls, put price, number puts, percent_in_money
+                    best_returns_holder[(list_len - len(different_elements) + bb), :] = \
+                    [different_elements[bb], strike_date_index, sorted_prices[n, 0], \
+                    int(call_row), sorted_prices[m, 0], int(put_col), percent_in_money[n, m][call_row, put_col]]
+                best_returns = best_returns_holder[best_returns_holder[:, 0].argsort()[::-1]]
+    return best_returns
 
 ### -------- ###
 
-# This is a non-annotated heatmap using Plotly
-
-def plot_heatmap(winning, sorted_prices, title_name):
-    # x-axis are put prices
-    # y-axis are call prices
-
-    data = go.Heatmap(
-        z = winning,
-        x = list(sorted_prices[:,0]),
-        y = list(sorted_prices[:,0]),
-        xgap = 5,
-        ygap = 5,
-        text = np.matrix.round(winning, 1)
-        )
-
-
-    layout = go.Layout(
-        title = (str(title_name)),
-        font = dict(size = 20),
-        xaxis = dict(showgrid=True, ticks="inside", dtick=1, title_text='Put Price', \
-                title_font = dict(size=25)),
-        yaxis = dict(showgrid=True, ticks="inside", dtick=1, title_text='Call Price', \
-                title_font = dict(size=25)),
-        width = 1500,
-        height = 950
-    )
-
-    fig = go.Figure(data = data, layout = layout)
-    fig.write_image(str(title_name) + '.png')
+def beautify_dataframe(best_returns, expiry_dates):
+    my_results = pd.DataFrame(data = best_returns, columns = ['(Percent * Avg Return)/(Contract * Day)', \
+    'Strike Date', 'Call Price', 'Call Amount', 'Put Price', 'Put Amount', 'Percent Chance In Money'])
+    expiry_dates = np.array(expiry_dates)
+    date_indices = np.array(my_results['Strike Date'], dtype = int)
+    my_results['Strike Date'] = expiry_dates[date_indices]
+    return my_results
 
 ### -------- ###
 

@@ -6,6 +6,7 @@ import time
 
 ### --- Initialization --- ###
 q = Questrade()
+finished = False
 #np.set_printoptions(threshold=np.inf)
 
 stock_of_interest = 'JNJ'
@@ -17,6 +18,7 @@ fixed_commission = 9.95
 contract_commission = 1
 call_sell_max = 10
 put_sell_max = 10
+list_len = 50
 
 ### --- Main Script --- ###
 
@@ -31,12 +33,14 @@ expiry_dates = []
 for n in range (0,len(all_options_data)):
     expiry_dates.append(all_options_data[n]['expiryDate'])
 expiry_dates_new = my_fun.date_convert(expiry_dates)
+best_returns = np.zeros((list_len, 7))
 
 
 #Should be: range(0,len(all_options_data))
-for n in range(0, len(all_options_data)):
+for n in range(8, 9):
     # Gets the strike date and calculates the number of days till expiry
     # COULD ADD EXTRA 1 FOR THE WEEKEND!
+    strike_date_index = n
     strike_date = expiry_dates_new[n]
     days_till_expiry = np.busday_count(current_date, strike_date)
     # Taking the percent change and applying to the current price
@@ -49,10 +53,34 @@ for n in range(0, len(all_options_data)):
     [percent_chance_in_money, historical_return_avg, risk_money] = \
     my_fun.risk_analysis_v3(sorted_prices, current_price, fixed_commission, contract_commission, hist_final_price, \
     call_sell_max = 2, put_sell_max = 2)
-    # my_fun.plot_heatmap_v2(percent_chance_in_money, sorted_prices, \
-    #     str(str(stock_of_interest) + '/' + str(strike_date) + '_percent_chance_in_money'))
-    # my_fun.plot_heatmap_v2(historical_return_avg, sorted_prices, \
-    #     str(str(stock_of_interest) + '/' + str(strike_date) + '_avg_returns'))
-    # my_fun.plot_heatmap_v2(risk_money, sorted_prices, \
-    #     str(str(stock_of_interest) + '/' + str(strike_date) + '_safety_money'))
+    best_returns = my_fun.find_best(best_returns, percent_chance_in_money, historical_return_avg, \
+    sorted_prices, strike_date_index, days_till_expiry)
     print(time.time() - t)
+
+my_results = my_fun.beautify_dataframe(best_returns, expiry_dates_new)
+while (finished == False):
+    print(my_results)
+    my_select = input('Which option would you like to exercise? (input index number(s) as a consecutive string e.g. 12345)')
+    try:
+        my_select = np.array(my_select, dtype = int)
+    except:
+        finished = True
+        continue
+    selected_pretty = my_results.loc[my_select]
+    print('You have selected the following option(s):')
+    print(selected_pretty)
+    my_confirm = input('Are you sure you want to sell these options? (y/n)')
+    if (my_confirm == 'y'):
+        selected = best_returns[my_select]
+        finished = True
+    elif (my_confirm == 'n'):
+        my_confirm = input('Order cancelled. Do you want to reselect(1) or terminate process(2)? (1/2)')
+        if (my_confirm == '1'):
+            continue
+        elif (my_confirm == '2'):
+            finished = True
+            continue
+        else:
+            print('Input not understood, taking you back to results.')
+    else:
+        print('Input not understood, taking you back to results.')
