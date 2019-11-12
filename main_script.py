@@ -62,7 +62,7 @@ while (finished == False):
     print(my_results)
     my_select = input('Which option would you like to exercise? (input index number(s) as a consecutive string e.g. 12345)')
     try:
-        my_select = np.array(my_select, dtype = int)
+        my_select = int(my_select)
     except:
         finished = True
         continue
