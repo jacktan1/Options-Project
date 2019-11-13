@@ -9,7 +9,7 @@ q = Questrade()
 finished = False
 # np.set_printoptions(threshold=np.inf)
 
-stock_of_interest = 'JNJ'
+stock_of_interest = 'CVX'
 stock_data = q.symbols_search(prefix=stock_of_interest)
 stock_Id = stock_data['symbols'][0]['symbolId']
 alphaVan_API = 'U4G0AXZ62E77Z161'
@@ -38,7 +38,7 @@ best_returns = np.zeros((list_len, 7))
 
 
 # Should be: range(0,len(all_options_data))
-for n in range(1, 9):
+for n in range(2, len(all_options_data)):
     # Gets the strike date and calculates the number of days till expiry
     # COULD ADD EXTRA 1 FOR THE WEEKEND!
     strike_date_index = n
@@ -55,7 +55,7 @@ for n in range(1, 9):
     # calculates the max gain and loss bearable
     [percent_chance_in_money, historical_return_avg, risk_money] = \
         my_fun.risk_analysis_v3(sorted_prices, current_price, fixed_commission, contract_commission, hist_final_price,
-                                call_sell_max=1, put_sell_max=4)
+                                call_sell_max=1, put_sell_max=2)
     best_returns = my_fun.find_best(best_returns, percent_chance_in_money, historical_return_avg,
                                     sorted_prices, strike_date_index, days_till_expiry)
     print(time.time() - t)
