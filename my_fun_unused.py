@@ -1,4 +1,67 @@
 from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+import chart_studio.plotly as py
+import plotly.graph_objects as go
+import plotly.figure_factory as ff
+
+### -------- ###
+
+# Extracts the historical daily closing price of a given stock from AlphaVantage API
+
+
+from mpl_toolkits.mplot3d import Axes3D
+
+
+def extract_price_history(stock_of_interest, API_key):
+    # Getting data link
+    data_url = 'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=' \
+        + stock_of_interest + '&outputsize=full&apikey=' + API_key
+    # Extracting the json information from the site
+    with urllib.request.urlopen(data_url) as url:
+        history_data = json.load(url)
+    # Treating the data since it had a lot of other crap
+    history_data = history_data['Time Series (Daily)']
+    # Extracting the dates keys
+    wanted_keys = history_data.keys()
+    # Getting the stupid date keys out of there
+    refined_history_data = list(history_data[k] for k in wanted_keys)
+
+    history_closing_price = np.zeros((len(refined_history_data), 1))
+    # Extracting the closing price info from all the prices
+    for n in range(0, len(refined_history_data)):
+        history_closing_price[n, 0] = refined_history_data[n]['4. close']
+    history_closing_price = history_closing_price[::-1]
+    return history_closing_price
+
+
+# This is an annotated heatmap using Plotly
+
+
+def plot_heatmap_v2(winning, sorted_prices, title_name):
+
+    fig = ff.create_annotated_heatmap(
+        z=winning,
+        x=list(sorted_prices[:, 0]),
+        y=list(sorted_prices[:, 0]),
+        annotation_text=np.matrix.round(winning),
+        showscale=True,
+        xgap=5,
+        ygap=5,
+    )
+
+    fig.layout.update(dict(height=900, width=1500, font=dict(size=10), title_text=str(title_name),
+                           title_font=dict(size=25)))
+
+    fig.layout.xaxis.update(dict(showgrid=True, ticks='inside', dtick=5, title_text='Put Price',
+                                 title_font=dict(size=25), side='bottom'))
+
+    fig.layout.yaxis.update(dict(showgrid=True, ticks="inside", dtick=5, title_text='Call Price',
+                                 title_font=dict(size=25), side='left'))
+
+    fig.write_image('figs/' + str(title_name) + '.png')
+
+
+### -------- ###
 
 # This function plots the winning probability data into a 3-D bar graph
 
