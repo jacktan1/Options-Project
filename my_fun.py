@@ -5,6 +5,7 @@ import pandas as pd
 from questrade_api import Questrade
 import urllib
 import math
+import os
 from numba import njit, prange
 
 q = Questrade()
@@ -211,16 +212,19 @@ def price_sorting_v2(option_data, strike_date, stock_name):
     if data_down == len(price_holder):
         print('Questrade data is down! Trying to pull most recent data...')
         try:
-            price_holder = np.loadtxt(str('bid_history/' + str(stock_name) + '/' + str(str(strike_date) + '.csv')),
-                                      delimiter=',')
+            price_holder = pd.read_csv(
+                str('bid_history/' + stock_name + '/' + str(strike_date) + '.csv')).to_numpy()
+            price_holder = price_holder[:,1:]
             print('Loaded local data!')
         except:
             print('Most recent data not found!')
             pass
     if data_down < len(price_holder):
         print('Questrade data saved locally!')
-        np.savetxt('bid_history/' + str(stock_name) + '/' +
-                   str(str(strike_date) + '.csv'), price_holder, delimiter=",")
+        if (os.path.exists('bid_history/' + stock_name) == False):
+            os.makedirs('bid_history/' + stock_name)
+        pd.DataFrame(price_holder).to_csv('bid_history/' + stock_name + '/' +
+                                          str(strike_date) + '.csv', encoding='utf-8', index=True)
     return price_holder
 
 
@@ -333,10 +337,10 @@ def find_best(best_returns, percent_in_money, historical_return_avg, sorted_pric
     for n in range(nrows):
         for m in range(ncols):
             # Method below takes into account the percent chance of being in money, only (avg return * percent) / day
-            # daily_info = percent_in_money[n, m] * \
-            #     historical_return_avg[n, m] * 0.01 * (1 / days_till_expiry)
+            daily_info = percent_in_money[n, m] * \
+                historical_return_avg[n, m] * 0.01 * (1 / days_till_expiry)
             # Method below does not take into account the percent chance of being in money, only avg return / day
-            daily_info = historical_return_avg[n, m] * (1 / days_till_expiry)
+            # daily_info = historical_return_avg[n, m] * (1 / days_till_expiry)
             daily_returns = np.append(np.ndarray.flatten(
                 daily_info), np.array(best_returns[:, 0]))
             daily_returns = np.array(
@@ -369,7 +373,7 @@ def find_best(best_returns, percent_in_money, historical_return_avg, sorted_pric
 ### -------- ###
 
 
-def beautify_dataframe(best_returns, expiry_dates):
+def beautify_to_df(best_returns, expiry_dates):
     my_results = pd.DataFrame(data=best_returns, columns=['(Percent * Avg Return)/(Contract * Day)',
                                                           'Strike Date', 'Call Price', 'Call Amount',
                                                           'Put Price', 'Put Amount', 'Percent Chance In Money'])

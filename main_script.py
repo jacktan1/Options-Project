@@ -2,12 +2,13 @@ import numpy as np
 from questrade_api import Questrade
 import my_fun
 import time
+import os
 
 ### --- Initialization --- ###
 q = Questrade()
 # np.set_printoptions(threshold=np.inf)
 
-stock_of_interest = 'CVX'
+stock_of_interest = 'JNJ'
 stock_data = q.symbols_search(prefix=stock_of_interest)
 stock_Id = stock_data['symbols'][0]['symbolId']
 alphaVan_token = 'U4G0AXZ62E77Z161'
@@ -17,7 +18,8 @@ fixed_commission = 9.95
 contract_commission = 1
 call_sell_max = 10
 put_sell_max = 10
-list_len = 50
+list_len = 100
+best_returns = np.zeros((list_len, 7))
 
 ### --- Main Script --- ###
 
@@ -35,17 +37,15 @@ expiry_dates = my_fun.get_expiry_dates(all_options_data)
 expiry_dates_new = my_fun.date_convert(expiry_dates)
 adjusted_current_price = my_fun.adjust_prices(
     expiry_dates_new, naked_current_price, naked_history, IEX_token, stock_of_interest, last_div_index)
-best_returns = np.zeros((list_len, 7))
 
 # Should be: range(0,len(all_options_data))
-for n in range(0, 1):
+for n in range(1, 2):
     strike_date_index = n
     strike_date = expiry_dates_new[n]
     current_price_at_exp = adjusted_current_price.get(strike_date)
-    # COULD ADD EXTRA 1 FOR THE WEEKEND!
-    days_till_expiry = np.busday_count(current_date, strike_date) + 1
-    print(days_till_expiry)
-    print(current_price_at_exp)
+    # COULD ADD EXTRA 1 FOR THE WEEKEND! Or if early in the day / market hasn't opened
+    days_till_expiry = np.busday_count(current_date, strike_date)
+    # print(days_till_expiry)
     # Taking the percent change and applying to the current price
     hist_final_price = my_fun.historical_final_price(
         naked_history, current_price_at_exp, days_till_expiry)
@@ -64,7 +64,10 @@ for n in range(0, 1):
                                     sorted_prices, strike_date_index, days_till_expiry)
     print(time.time() - t)
 
-my_results = my_fun.beautify_dataframe(best_returns, expiry_dates_new)
-my_results.to_csv('results/' + stock_of_interest + '/' +
+
+my_results = my_fun.beautify_to_df(best_returns, expiry_dates_new)
+if (os.path.exists('results/' + stock_of_interest) == False):
+    os.makedirs('results/' + stock_of_interest)
+my_results.to_csv('results/' + stock_of_interest + '/' + stock_of_interest + '_' +
                   current_date.strftime('%Y-%m-%d') + '.csv', encoding='utf-8', index=True)
 # my_fun.user_interaction(best_returns, my_results)
