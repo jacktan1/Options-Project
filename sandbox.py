@@ -38,6 +38,33 @@ expiry_dates = my_fun.get_expiry_dates(all_options_data)
 expiry_dates_new = my_fun.date_convert(expiry_dates)
 exp_dates_adjusted_current_price = my_fun.adjust_prices(
     expiry_dates_new, naked_current_price, naked_history, IEX_token, stock_of_interest, last_div_index)
-print(exp_dates_adjusted_current_price)
 strike_date = expiry_dates_new[0]
-print(exp_dates_adjusted_current_price.get(strike_date))
+print(strike_date)
+
+my_list = ['Strike Date', 'Sold Date', 'Type', 'Strike Price', 'Sold Price', 'Sold Quantity']
+
+my_list_2 = ['Transaction Date', 'Strike Date', 'Buy / Sell', 'Type', 'Strike Price', 'Premium Price',
+             'Quantity', 'Change in Cash (USD)']
+
+df = pd.DataFrame({'year': [2019],
+                    'month': [11],
+                    'day': [29]})
+my_dates = pd.to_datetime(df, format='%Y%m%d')
+date_1 = my_dates.iloc[0].asm8.astype('<M8[D]')
+
+purchase_time = pd.to_datetime('2019-11-20 12:49:00')
+purchase_time
+
+my_data = np.array([[date_1, purchase_time, 'Call', 129.0, 6.4, 3],\
+                    [date_1, purchase_time, 'Put', 140.0, 5.4, 3]])
+
+my_data_2 = np.array([[purchase_time, date_1, 'Sell', 'Call', 129.0, 6.4, 3, 1907],
+                      [purchase_time, date_1, 'Sell', 'Put', 140.0, 5.4, 3, 1607]])
+
+live_purchases = pd.DataFrame(columns = my_list, data = my_data)
+
+transactions = pd.DataFrame(columns = my_list_2, data = my_data_2)
+
+live_purchases.to_csv('live_options.csv', encoding='utf-8', index=True)
+
+transactions.to_csv('transaction_history.csv', encoding='utf-8', index=True)

@@ -19,7 +19,7 @@ contract_commission = 1
 call_sell_max = 10
 put_sell_max = 10
 list_len = 100
-best_returns = np.zeros((list_len, 7))
+best_returns = np.zeros((list_len, 9))
 
 ### --- Main Script --- ###
 
@@ -39,7 +39,7 @@ adjusted_current_price = my_fun.adjust_prices(
     expiry_dates_new, naked_current_price, naked_history, IEX_token, stock_of_interest, last_div_index)
 
 # Should be: range(0,len(all_options_data))
-for n in range(1, 2):
+for n in range(0, 1):
     strike_date_index = n
     strike_date = expiry_dates_new[n]
     current_price_at_exp = adjusted_current_price.get(strike_date)

@@ -173,8 +173,9 @@ def historical_final_price(naked_price_history, current_price, days_till_expiry)
 
 
 def price_sorting_v2(option_data, strike_date, stock_name):
-    # Returns a matrix with column order: strike price, call price, call size, put price, put size
-    price_holder = np.zeros((len(option_data), 5))
+    # Returns a matrix with column order: strike price, call bid price, call bid size, call ask price, call ask size
+    # put bid price, put bid size, put ask price, put ask size
+    price_holder = np.zeros((len(option_data), 9))
     id_holder = [0] * (2 * len(option_data))
     for n in range(0, len(option_data)):
         strike_price = option_data[n]['strikePrice']
@@ -194,14 +195,16 @@ def price_sorting_v2(option_data, strike_date, stock_name):
         call_put_data = q.markets_options(
             optionIds=list(id_holder))['optionQuotes']
     for n in range(0, len(option_data)):
-        bid_call_price = call_put_data[int(2 * n)]['bidPrice']
+        bid_call_price = call_put_data[2 * n]['bidPrice']
+        ask_call_price = call_put_data[2 * n]['askPrice']
         bid_call_size = call_put_data[2 * n]['bidSize']
+        ask_call_size = call_put_data[2 * n]['askSize']
         bid_put_price = call_put_data[2 * n + 1]['bidPrice']
+        ask_put_price = call_put_data[2 * n + 1]['askPrice']
         bid_put_size = call_put_data[2 * n + 1]['bidSize']
-        price_holder[n, 1] = bid_call_price
-        price_holder[n, 2] = bid_call_size
-        price_holder[n, 3] = bid_put_price
-        price_holder[n, 4] = bid_put_size
+        ask_put_size = call_put_data[2 * n + 1]['askSize']
+        price_holder[n, 1:] = [bid_call_price, bid_call_size, ask_call_price, ask_call_size,
+                               bid_put_price, bid_put_size, ask_put_price, ask_put_size]
     print('Done pulling data from Questrade API!')
     data_down = 0
     # Using this to see if data has been pulled successfully. Since bid_call_size is all
@@ -213,18 +216,19 @@ def price_sorting_v2(option_data, strike_date, stock_name):
         print('Questrade data is down! Trying to pull most recent data...')
         try:
             price_holder = pd.read_csv(
-                str('bid_history/' + stock_name + '/' + str(strike_date) + '.csv')).to_numpy()
-            price_holder = price_holder[:,1:]
+                str('bid_history/' + stock_name + '/' + str(strike_date) + '.csv')).iloc[:, 1:].to_numpy()
             print('Loaded local data!')
         except:
             print('Most recent data not found!')
             pass
     if data_down < len(price_holder):
-        print('Questrade data saved locally!')
+        col_names = ['Strike Price', 'Call bid price', 'Call bid size', 'Call ask price', 'Call ask size', \
+        'Put bid price', 'Put bid size', 'Put ask price', 'Put ask size']
         if (os.path.exists('bid_history/' + stock_name) == False):
             os.makedirs('bid_history/' + stock_name)
-        pd.DataFrame(price_holder).to_csv('bid_history/' + stock_name + '/' +
+        pd.DataFrame(columns = col_names, data = price_holder).to_csv('bid_history/' + stock_name + '/' +
                                           str(strike_date) + '.csv', encoding='utf-8', index=True)
+        print('Questrade data saved locally!')
     return price_holder
 
 
@@ -262,8 +266,8 @@ def risk_analysis_v3(sorted_prices, current_price, fixed_commission, contract_co
             risk_money_inner = np.zeros((call_sell_max + 1, put_sell_max + 1))
             ###
             put_strike_price = sorted_prices[m, 0]
-            put_premium = sorted_prices[m, 3]
-            put_size = sorted_prices[m, 4]
+            put_premium = sorted_prices[m, 5]
+            put_size = sorted_prices[m, 6]
             ###
             # Seeing if these options actually exist
             if (call_premium == None) or (put_premium == None):
@@ -362,10 +366,11 @@ def find_best(best_returns, percent_in_money, historical_return_avg, sorted_pric
                     [call_row, put_col] = np.where(
                         daily_info == different_elements[bb])
                     # Order is 'percent chance * avg return per contract per day', strike date,
-                    # call price, number calls, put price, number puts, percent_in_money
+                    # call price, call bid, number calls, put price, put bid, number puts, percent_in_money
                     best_returns_holder[(list_len - len(different_elements) + bb), :] = \
                         [different_elements[bb], strike_date_index, sorted_prices[n, 0],
-                         int(call_row), sorted_prices[m, 0], int(put_col), percent_in_money[n, m][call_row, put_col]]
+                         sorted_prices[n, 1], call_row, sorted_prices[m, 0],
+                         sorted_prices[m, 5], put_col, percent_in_money[n, m][call_row, put_col]]
                 best_returns = best_returns_holder[best_returns_holder[:, 0].argsort()[
                     ::-1]]
     return best_returns
@@ -375,8 +380,9 @@ def find_best(best_returns, percent_in_money, historical_return_avg, sorted_pric
 
 def beautify_to_df(best_returns, expiry_dates):
     my_results = pd.DataFrame(data=best_returns, columns=['(Percent * Avg Return)/(Contract * Day)',
-                                                          'Strike Date', 'Call Price', 'Call Amount',
-                                                          'Put Price', 'Put Amount', 'Percent Chance In Money'])
+                                                          'Strike Date', 'Call Strike', 'Call Bid Price',
+                                                          'Call Size', 'Put Strike', 'Put Bid Price',
+                                                          'Put Size', 'Percent Chance In Money'])
     expiry_dates = np.array(expiry_dates)
     date_indices = np.array(my_results['Strike Date'], dtype=int)
     my_results['Strike Date'] = expiry_dates[date_indices]
