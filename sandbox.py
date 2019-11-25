@@ -4,6 +4,8 @@ from questrade_api import Questrade
 import my_fun
 import time
 import pandas as pd
+import copy
+from numba import njit, prange, jit
 
 ### --- Initialization --- ###
 q = Questrade()
@@ -41,30 +43,73 @@ exp_dates_adjusted_current_price = my_fun.adjust_prices(
 strike_date = expiry_dates_new[0]
 print(strike_date)
 
-my_list = ['Strike Date', 'Sold Date', 'Type', 'Strike Price', 'Sold Price', 'Sold Quantity']
+my_list = ['Strike Date', 'Sold Date', 'Type',
+           'Strike Price', 'Sold Price', 'Sold Quantity']
 
 my_list_2 = ['Transaction Date', 'Strike Date', 'Buy / Sell', 'Type', 'Strike Price', 'Premium Price',
              'Quantity', 'Change in Cash (USD)']
 
 df = pd.DataFrame({'year': [2019],
-                    'month': [11],
-                    'day': [29]})
+                   'month': [11],
+                   'day': [29]})
 my_dates = pd.to_datetime(df, format='%Y%m%d')
 date_1 = my_dates.iloc[0].asm8.astype('<M8[D]')
 
 purchase_time = pd.to_datetime('2019-11-20 12:49:00')
 purchase_time
 
-my_data = np.array([[date_1, purchase_time, 'Call', 129.0, 6.4, 3],\
+my_data = np.array([[date_1, purchase_time, 'Call', 129.0, 6.4, 3],
                     [date_1, purchase_time, 'Put', 140.0, 5.4, 3]])
 
 my_data_2 = np.array([[purchase_time, date_1, 'Sell', 'Call', 129.0, 6.4, 3, 1907],
                       [purchase_time, date_1, 'Sell', 'Put', 140.0, 5.4, 3, 1607]])
 
-live_purchases = pd.DataFrame(columns = my_list, data = my_data)
+live_purchases = pd.DataFrame(columns=my_list, data=my_data)
 
-transactions = pd.DataFrame(columns = my_list_2, data = my_data_2)
+transactions = pd.DataFrame(columns=my_list_2, data=my_data_2)
 
 live_purchases.to_csv('live_options.csv', encoding='utf-8', index=True)
 
 transactions.to_csv('transaction_history.csv', encoding='utf-8', index=True)
+
+
+@jit(parallel=True, nopython=False)
+def risk_analysis_v4(call_sell_max=2, put_sell_max=2):
+
+    sorted_prices = np.zeros((3, 1))
+
+    for n in range(call_sell_max + 1):
+        globals()['hist_return_avg_' + str(n) + str(put_sell_max)] = \
+            np.zeros((len(sorted_prices), len(sorted_prices)))
+        globals()['percent_in_money' + str(n) + str(put_sell_max)] = \
+            np.zeros((len(sorted_prices), len(sorted_prices)))
+        globals()['risk_money' + str(n) + str(put_sell_max)] = \
+            np.zeros((len(sorted_prices), len(sorted_prices)))
+    for n in range(put_sell_max):
+        globals()['hist_return_avg_' + str(call_sell_max) + str(n)] = \
+            np.zeros((len(sorted_prices), len(sorted_prices)))
+        globals()['percent_in_money' + str(call_sell_max) + str(n)] = \
+            np.zeros((len(sorted_prices), len(sorted_prices)))
+        globals()['risk_money' + str(call_sell_max) + str(n)] = \
+            np.zeros((len(sorted_prices), len(sorted_prices)))
+
+    return(hist_return_avg_21)
+
+a = 5
+b = c = d = copy.deepcopy(a)
+b += 4
+
+qwe = np.ones((5,1)) * 2
+asd = np.ones((1,2)) *3
+np.multiply(qwe, asd)
+
+
+@njit(parallel=True)
+def fuck_numba():
+    qwe = np.ones((5,1)) * 2
+    asd = np.ones((1,2)) * 3
+    fff = qwe * asd
+    return fff
+
+
+print(fuck_numba())

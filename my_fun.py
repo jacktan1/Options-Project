@@ -6,7 +6,7 @@ from questrade_api import Questrade
 import urllib
 import math
 import os
-from numba import njit, prange
+from numba import prange, jit
 
 q = Questrade()
 
@@ -83,7 +83,7 @@ def extract_price_history_v2(stock_of_interest, API_key):
 # Scale historical prices to remove role played by dividends
 
 
-@njit(parallel=True)
+@jit(parallel=True, nopython=True)
 def get_naked_prices(my_history_price, current_price, num_days_a_year):
     naked_history = my_history_price.copy()
     adjust_matrix = np.zeros((len(my_history_price), 1))
@@ -157,6 +157,7 @@ def adjust_prices(expiry_dates_new, naked_current_price, naked_history, IEX_toke
 # This function calculates the theoretical end prices of the stock at the expiry date
 
 
+@jit(parallel=True, nopython=True)
 def historical_final_price(naked_price_history, current_price, days_till_expiry):
     final_prices = np.zeros(
         (int(len(naked_price_history) - days_till_expiry), 1))
@@ -196,11 +197,19 @@ def price_sorting_v2(option_data, strike_date, stock_name):
             optionIds=list(id_holder))['optionQuotes']
     for n in range(0, len(option_data)):
         bid_call_price = call_put_data[2 * n]['bidPrice']
+        if bid_call_price == None:
+            bid_call_price = 0
         ask_call_price = call_put_data[2 * n]['askPrice']
+        if ask_call_price == None:
+            ask_call_price = 0
         bid_call_size = call_put_data[2 * n]['bidSize']
         ask_call_size = call_put_data[2 * n]['askSize']
         bid_put_price = call_put_data[2 * n + 1]['bidPrice']
+        if bid_put_price == None:
+            bid_put_price = 0
         ask_put_price = call_put_data[2 * n + 1]['askPrice']
+        if ask_put_price == None:
+            ask_put_price = 0
         bid_put_size = call_put_data[2 * n + 1]['bidSize']
         ask_put_size = call_put_data[2 * n + 1]['askSize']
         price_holder[n, 1:] = [bid_call_price, bid_call_size, ask_call_price, ask_call_size,
@@ -212,6 +221,7 @@ def price_sorting_v2(option_data, strike_date, stock_name):
     for n in range(0, len(price_holder)):
         if price_holder[n, 2] == 0:
             data_down = data_down + 1
+    # If data is down, we try to load it locally
     if data_down == len(price_holder):
         print('Questrade data is down! Trying to pull most recent data...')
         try:
@@ -221,13 +231,14 @@ def price_sorting_v2(option_data, strike_date, stock_name):
         except:
             print('Most recent data not found!')
             pass
+    # If data is not down, then we save it locally
     if data_down < len(price_holder):
-        col_names = ['Strike Price', 'Call bid price', 'Call bid size', 'Call ask price', 'Call ask size', \
-        'Put bid price', 'Put bid size', 'Put ask price', 'Put ask size']
+        col_names = ['Strike Price', 'Call bid price', 'Call bid size', 'Call ask price', 'Call ask size',
+                     'Put bid price', 'Put bid size', 'Put ask price', 'Put ask size']
         if (os.path.exists('bid_history/' + stock_name) == False):
             os.makedirs('bid_history/' + stock_name)
-        pd.DataFrame(columns = col_names, data = price_holder).to_csv('bid_history/' + stock_name + '/' +
-                                          str(strike_date) + '.csv', encoding='utf-8', index=True)
+        pd.DataFrame(columns=col_names, data=price_holder).to_csv('bid_history/' + stock_name + '/' +
+                                                                  str(strike_date) + '.csv', encoding='utf-8', index=True)
         print('Questrade data saved locally!')
     return price_holder
 
@@ -237,7 +248,6 @@ def price_sorting_v2(option_data, strike_date, stock_name):
 # Calculates the max increase or decrease in stock price while remaining in safe zone.
 # call price is on rows, put price is on columns
 # first sheet is max increase, second sheet is max decrease
-
 
 def risk_analysis_v3(sorted_prices, current_price, fixed_commission, contract_commission, final_prices,
                      call_sell_max=1, put_sell_max=1):
@@ -249,16 +259,12 @@ def risk_analysis_v3(sorted_prices, current_price, fixed_commission, contract_co
         (len(sorted_prices), len(sorted_prices)), dtype=np.ndarray)
     # The rows represent call prices
     for n in range(0, len(sorted_prices)):
-        # Progress indicator
-        print(n)
         call_strike_price = sorted_prices[n, 0]
         call_premium = sorted_prices[n, 1]
         call_size = sorted_prices[n, 2]
         # The columns represent put prices
         for m in range(0, len(sorted_prices)):
-            # reinitilaizing the max call and put matrix
-            num_call_put_matrix = np.zeros((call_sell_max, put_sell_max))
-            # reinitilaizing other matrices
+            # reinitilaizing inner matrices
             historical_return_avg_inner = np.zeros(
                 (call_sell_max + 1, put_sell_max + 1))
             percent_in_money_inner = np.zeros(
@@ -269,20 +275,21 @@ def risk_analysis_v3(sorted_prices, current_price, fixed_commission, contract_co
             put_premium = sorted_prices[m, 5]
             put_size = sorted_prices[m, 6]
             ###
-            # Seeing if these options actually exist
-            if (call_premium == None) or (put_premium == None):
-                percent_in_money[n, m] = None
-                historical_return_avg[n, m] = None
+            # Seeing if these options actually exist, if not then just assign everything 0
+            if (call_premium == 0) or (put_premium == 0):
+                percent_in_money[n, m] = 0
+                historical_return_avg[n, m] = 0
+                risk_money[n, m] = 0
             else:
                 # Calls
                 call_base = np.minimum(
                     call_strike_price - final_prices, 0) + call_premium
+                # Creates the matrix of all possible call_sell amounts
                 call_num_matrix = np.arange(
                     0, call_sell_max + 1, 1).reshape(1, call_sell_max + 1)
                 call_comm_matrix = fixed_commission + call_num_matrix * contract_commission
                 call_comm_matrix[0][0] = 0
                 call_return = call_base * call_num_matrix * 100 - call_comm_matrix
-
                 # Puts
                 put_base = np.minimum(
                     final_prices - put_strike_price, 0) + put_premium
@@ -345,10 +352,10 @@ def find_best(best_returns, percent_in_money, historical_return_avg, sorted_pric
                 historical_return_avg[n, m] * 0.01 * (1 / days_till_expiry)
             # Method below does not take into account the percent chance of being in money, only avg return / day
             # daily_info = historical_return_avg[n, m] * (1 / days_till_expiry)
+            if isinstance(daily_info, np.float64):
+                continue
             daily_returns = np.append(np.ndarray.flatten(
                 daily_info), np.array(best_returns[:, 0]))
-            daily_returns = np.array(
-                [x for x in daily_returns if str(x) != 'nan'])
             new_best = sorted((daily_returns[np.argpartition(daily_returns, (-list_len))][(-list_len):]),
                               reverse=True)
             # See if there has been any changes to the best returns matrix
