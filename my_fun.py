@@ -83,7 +83,7 @@ def extract_price_history_v2(stock_of_interest, API_key):
 # Scale historical prices to remove role played by dividends
 
 
-@jit(parallel=True, nopython=True)
+# @jit(parallel=False, nopython=True)
 def get_naked_prices(my_history_price, current_price, num_days_a_year):
     naked_history = my_history_price.copy()
     adjust_matrix = np.zeros((len(my_history_price), 1))
@@ -157,7 +157,7 @@ def adjust_prices(expiry_dates_new, naked_current_price, naked_history, IEX_toke
 # This function calculates the theoretical end prices of the stock at the expiry date
 
 
-@jit(parallel=True, nopython=True)
+# @jit(parallel=False, nopython=True)
 def historical_final_price(naked_price_history, current_price, days_till_expiry):
     final_prices = np.zeros(
         (int(len(naked_price_history) - days_till_expiry), 1))
@@ -238,19 +238,16 @@ def price_sorting_v2(option_data, strike_date, stock_name):
         if (os.path.exists('bid_history/' + stock_name) == False):
             os.makedirs('bid_history/' + stock_name)
         pd.DataFrame(columns=col_names, data=price_holder).to_csv('bid_history/' + stock_name + '/' +
-                                                                  str(strike_date) + '.csv', encoding='utf-8', index=True)
+                                                                  str(strike_date) +
+                                                                  '.csv', encoding='utf-8', index=True)
         print('Questrade data saved locally!')
     return price_holder
 
 
 ### -------- ###
 
-# Calculates the max increase or decrease in stock price while remaining in safe zone.
-# call price is on rows, put price is on columns
-# first sheet is max increase, second sheet is max decrease
-
-def risk_analysis_v3(sorted_prices, current_price, fixed_commission, contract_commission, final_prices,
-                     call_sell_max=1, put_sell_max=1):
+def risk_analysis_v3(sorted_prices, current_price, fixed_commission, contract_commission, assignment_fee,
+                     final_prices, call_sell_max=1, put_sell_max=1):
     historical_return_avg = np.zeros(
         (len(sorted_prices), len(sorted_prices)), dtype=np.ndarray)
     percent_in_money = np.zeros(
@@ -287,7 +284,9 @@ def risk_analysis_v3(sorted_prices, current_price, fixed_commission, contract_co
                 # Creates the matrix of all possible call_sell amounts
                 call_num_matrix = np.arange(
                     0, call_sell_max + 1, 1).reshape(1, call_sell_max + 1)
-                call_comm_matrix = fixed_commission + call_num_matrix * contract_commission
+                # If options are not exercised, then basic commission paid twice (sell and buy back)
+                call_comm_matrix = (fixed_commission +
+                                    call_num_matrix * contract_commission) * 2
                 call_comm_matrix[0][0] = 0
                 call_return = call_base * call_num_matrix * 100 - call_comm_matrix
                 # Puts
@@ -295,7 +294,8 @@ def risk_analysis_v3(sorted_prices, current_price, fixed_commission, contract_co
                     final_prices - put_strike_price, 0) + put_premium
                 put_num_matrix = np.arange(
                     0, put_sell_max + 1, 1).reshape(1, put_sell_max + 1)
-                put_comm_matrix = fixed_commission + put_num_matrix * contract_commission
+                put_comm_matrix = (fixed_commission +
+                                   put_num_matrix * contract_commission) * 2
                 put_comm_matrix[0][0] = 0
                 put_return = put_base * put_num_matrix * 100 - put_comm_matrix
 
@@ -329,8 +329,8 @@ def risk_analysis_v3(sorted_prices, current_price, fixed_commission, contract_co
                                 risk_money_inner[aa, bb] = risk_money_holder / \
                                     (len(total_call_put) - num_in_money)
 
-                historical_return_avg[n, m] = historical_return_avg_inner
                 percent_in_money[n, m] = percent_in_money_inner
+                historical_return_avg[n, m] = historical_return_avg_inner
                 risk_money[n, m] = risk_money_inner
 
     return [percent_in_money, historical_return_avg, risk_money]

@@ -95,7 +95,8 @@ def risk_analysis_v4(call_sell_max=2, put_sell_max=2):
 
     return(hist_return_avg_21)
 
-a = 5
+a = np.array([5])
+a.all()
 b = c = d = copy.deepcopy(a)
 b += 4
 
@@ -103,13 +104,19 @@ qwe = np.ones((5,1)) * 2
 asd = np.ones((1,2)) *3
 np.multiply(qwe, asd)
 
+qwe[0,0]
+
+isinstance(qwe[0,0], np.float64)
+
+aaa = np.ones((3,2,2))
+aaa.shape
+
 
 @njit(parallel=True)
 def fuck_numba():
-    qwe = np.ones((5,1)) * 2
-    asd = np.ones((1,2)) * 3
-    fff = qwe * asd
+    qwe = np.ones((5,1))
+    asd = np.array([[0., 1., 2.]])
+    fff = np.dot(qwe, asd) * 3 - asd
     return fff
-
 
 print(fuck_numba())
