@@ -240,6 +240,152 @@ num_call_sell = 1, num_put_sell = 1):
 
 ### -------- ###
 
+### ---- ###
+# [percent_chance_in_money, historical_return_avg, risk_money] = \
+# my_fun.risk_analysis_v3(sorted_prices, current_price_at_exp, fixed_commission,
+#                         contract_commission, assignment_fee, hist_final_price,
+#                         call_sell_max, put_sell_max)
+### ---- ###
+def risk_analysis_v3(sorted_prices, current_price, fixed_commission, contract_commission, assignment_fee,
+                     final_prices, call_sell_max = 1, put_sell_max = 1):
+    historical_return_avg=np.zeros(
+        (len(sorted_prices), len(sorted_prices)), dtype = np.ndarray)
+    percent_in_money=np.zeros(
+        (len(sorted_prices), len(sorted_prices)), dtype = np.ndarray)
+    risk_money=np.zeros(
+        (len(sorted_prices), len(sorted_prices)), dtype = np.ndarray)
+    # The rows represent call prices
+    for n in range(0, len(sorted_prices)):
+        call_strike_price=sorted_prices[n, 0]
+        call_premium=sorted_prices[n, 1]
+        call_size=sorted_prices[n, 2]
+        # The columns represent put prices
+        for m in range(0, len(sorted_prices)):
+            # reinitilaizing inner matrices
+            historical_return_avg_inner=np.zeros(
+                (call_sell_max + 1, put_sell_max + 1))
+            percent_in_money_inner=np.zeros(
+                (call_sell_max + 1, put_sell_max + 1))
+            risk_money_inner=np.zeros((call_sell_max + 1, put_sell_max + 1))
+            ###
+            put_strike_price=sorted_prices[m, 0]
+            put_premium=sorted_prices[m, 5]
+            put_size=sorted_prices[m, 6]
+            ###
+            # Seeing if these options actually exist, if not then just assign everything 0
+            if (call_premium == 0) or (put_premium == 0):
+                percent_in_money[n, m]=0
+                historical_return_avg[n, m]=0
+                risk_money[n, m]=0
+            else:
+                # Calls
+                call_base=np.minimum(
+                    call_strike_price - final_prices, 0) + call_premium
+                # Creates the matrix of all possible call_sell amounts
+                call_num_matrix=np.arange(
+                    0, call_sell_max + 1, 1).reshape(1, call_sell_max + 1)
+                # If options are not exercised, then basic commission paid twice (sell and buy back)
+                call_comm_matrix=(fixed_commission +
+                                    call_num_matrix * contract_commission) * 2
+                call_comm_matrix[0][0]=0
+                call_return=call_base * call_num_matrix * 100 - call_comm_matrix
+                # Puts
+                put_base=np.minimum(
+                    final_prices - put_strike_price, 0) + put_premium
+                put_num_matrix=np.arange(
+                    0, put_sell_max + 1, 1).reshape(1, put_sell_max + 1)
+                put_comm_matrix=(fixed_commission +
+                                   put_num_matrix * contract_commission) * 2
+                put_comm_matrix[0][0]=0
+                put_return=put_base * put_num_matrix * 100 - put_comm_matrix
+
+                # The inner matrix rows will represent number of call contracts to sell
+                for aa in range(0, call_sell_max + 1):
+                    # The inner matrix columns will represent number of put contracts to sell
+                    for bb in range(0, put_sell_max + 1):
+                        # reinitialize parameter to calculate percentage chance to be in money
+                        num_in_money=0
+                        risk_money_holder=0
+                        if (aa == 0) & (bb == 0):
+                            historical_return_avg_inner[aa, bb]=0
+                            percent_in_money_inner[aa, bb]=0
+                            risk_money_inner[aa, bb]=0
+                        else:
+                            total_call_put=(
+                                call_return[:, aa] + put_return[:, bb]) / (aa + bb)
+                            for cc in range(0, len(total_call_put)):
+                                if total_call_put[cc] > 0:
+                                    num_in_money += 1
+                                else:
+                                    risk_money_holder += total_call_put[cc]
+
+                            historical_return_avg_inner[aa, bb] = np.sum(
+                                total_call_put) / len(total_call_put)
+                            percent_in_money_inner[aa, bb] = (
+                                num_in_money / len(total_call_put)) * 100
+                            if (len(total_call_put) - num_in_money) == 0:
+                                risk_money_inner[aa, bb] = 0
+                            else:
+                                risk_money_inner[aa, bb] = risk_money_holder / \
+                                    (len(total_call_put) - num_in_money)
+
+                percent_in_money[n, m] = percent_in_money_inner
+                historical_return_avg[n, m] = historical_return_avg_inner
+                risk_money[n, m] = risk_money_inner
+
+    return [percent_in_money, historical_return_avg, risk_money]
+
+### ---- ###
+# best_returns = my_fun.find_best(best_returns, percent_chance_in_money, historical_return_avg,
+#                                 sorted_prices, strike_date_index, days_till_expiry)
+### ---- ###
+
+# This function multiplies the percentage of winning with the average profit per contract
+# and returns the top choices. If better than current top choices, it will update.
+
+def find_best(best_returns, percent_in_money, historical_return_avg, sorted_prices,
+              strike_date_index, days_till_expiry):
+    [list_len, list_width] = best_returns.shape
+    [nrows, ncols] = percent_in_money.shape
+    for n in range(nrows):
+        for m in range(ncols):
+            # Method below takes into account the percent chance of being in money, only (avg return * percent) / day
+            daily_info = percent_in_money[n, m] * \
+                historical_return_avg[n, m] * 0.01 * (1 / days_till_expiry)
+            # Method below does not take into account the percent chance of being in money, only avg return / day
+            # daily_info = historical_return_avg[n, m] * (1 / days_till_expiry)
+            if isinstance(daily_info, np.float64):
+                continue
+            daily_returns = np.append(np.ndarray.flatten(
+                daily_info), np.array(best_returns[:, 0]))
+            new_best = sorted((daily_returns[np.argpartition(daily_returns, (-list_len))][(-list_len):]),
+                              reverse=True)
+            # See if there has been any changes to the best returns matrix
+            if (new_best == list(best_returns[:, 0])):
+                continue
+            else:
+                different_elements = list()
+                for aa in range(list_len):
+                    if ((new_best[aa] in best_returns) == False):
+                        different_elements.append(new_best[aa])
+                best_returns_holder = np.zeros((list_len, list_width))
+                best_returns_holder[0:(list_len - len(different_elements))] = \
+                    best_returns[0:(list_len - len(different_elements))]
+                for bb in range(len(different_elements)):
+                    [call_row, put_col] = np.where(
+                        daily_info == different_elements[bb])
+                    # Order is 'percent chance * avg return per contract per day', strike date,
+                    # call price, call bid, number calls, put price, put bid, number puts, percent_in_money
+                    best_returns_holder[(list_len - len(different_elements) + bb), :] = \
+                        [different_elements[bb], strike_date_index, sorted_prices[n, 0],
+                         sorted_prices[n, 1], call_row, sorted_prices[m, 0],
+                         sorted_prices[m, 5], put_col, percent_in_money[n, m][call_row, put_col]]
+                best_returns = best_returns_holder[best_returns_holder[:, 0].argsort()[
+                    ::-1]]
+    return best_returns
+
+### -------- ###
+
 # Converts to percent and annualizes the risk.
 def norm_percentage_annualized(max_increase_decrease, days_till_expiry, num_days_a_year):
     percent_max = 100 * np.array(max_increase_decrease)

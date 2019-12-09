@@ -17,10 +17,15 @@ num_days_a_year = 252
 fixed_commission = 9.95
 assignment_fee = 24.95
 contract_commission = 1.
-list_len = 20 # This value has to be even
+in_money_thres = 65
+list_len = 20  # This value has to be even
 best_returns = np.zeros((list_len, 9))
 # We don't want to set the number of days we want to calculate, since a lot of testing
-best_returns_mass = np.zeros((1, 9))
+best_returns_total = np.zeros((1, 9))
+
+
+call_sell_max = 3
+put_sell_max = 3
 
 ### --- Main Script --- ###
 
@@ -63,23 +68,21 @@ for n in range(0, len(all_options_data)):
     print(time.time() - t)
     # Simulation based off our data
     [percent_chance_in_money, historical_return_avg, risk_money] = \
-    my_fun_2.risk_analysis_v4(sorted_prices, current_price_at_exp, fixed_commission,
+        my_fun_2.risk_analysis_v4(sorted_prices, current_price_at_exp, fixed_commission,
                                   contract_commission, assignment_fee, hist_final_price,
-                                  call_sell_max=3, put_sell_max=3)
-    # [percent_chance_in_money, historical_return_avg, risk_money] = \
-    # my_fun.risk_analysis_v3(sorted_prices, current_price_at_exp, fixed_commission,
-    #                         contract_commission, assignment_fee, hist_final_price,
-    #                         call_sell_max=3, put_sell_max=3)
+                                  call_sell_max, put_sell_max)
     print(time.time() - t)
-    # best_returns = my_fun.find_best(best_returns, percent_chance_in_money, historical_return_avg,
-    #                                 sorted_prices, strike_date_index, days_till_expiry)
-    best_returns_day = my_fun_2.find_best_v2(list_len, percent_chance_in_money, historical_return_avg,
-                                     sorted_prices, strike_date_index, days_till_expiry)
-    best_returns_mass = np.append(best_returns_mass, best_returns_day, axis = 0)
+    best_returns_day = my_fun_2.find_best_v2(percent_chance_in_money, historical_return_avg,
+                                             sorted_prices, in_money_thres, strike_date_index,
+                                             days_till_expiry, call_sell_max, put_sell_max)
+    best_returns_total = np.append(
+        best_returns_total, best_returns_day, axis=0)
 
-print(best_returns_mass.shape)
+# Removing all the 0 rows
+best_returns_total = best_returns_total[best_returns_total[:, 0] > 0]
 
-my_results = my_fun.beautify_to_df(best_returns, expiry_dates_new)
+# best_returns_total = best_returns_total[best_returns_total[:, 0] > 0]
+my_results = my_fun.beautify_to_df(best_returns_total, expiry_dates_new)
 if (os.path.exists('results/' + stock_of_interest) == False):
     os.makedirs('results/' + stock_of_interest)
 my_results.to_csv('results/' + stock_of_interest + '/' + stock_of_interest + '_' +

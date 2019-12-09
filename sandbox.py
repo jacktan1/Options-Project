@@ -104,19 +104,55 @@ qwe = np.ones((5,1)) * 2
 asd = np.ones((1,2)) *3
 np.multiply(qwe, asd)
 
-qwe[0,0]
+qwe.shape
 
 isinstance(qwe[0,0], np.float64)
 
-aaa = np.ones((3,2,2))
-aaa.shape
+np.array([[]]) == [[]]
 
+aaa[0, :, :]
+aass = np.array([[74, 74, 3], [75, 80, 74], [1, 2, 3]])
+print(aass[:,0])
+asdasd = np.argpartition(aass.flatten(), -9)
+asdasd
+lmao = np.where(aass == asdasd[3])[0][0]
+lmao
 
-@njit(parallel=True)
+aass
+np.where(aass == 75)[0][0]
+
+aaa = np.array([[74, 74, 3], [4, 5, 6]])
+aaa
+asa = np.zeros((1,3))
+np.append(asa, aass, axis = 0)
+
+aass.flatten()
+
+bbb = np.append(aaa, aass, axis = 0)
+bbb
+
+np.flip(bbb, axis = 0)
+
+aaa[aaa[:,1] > 700][:,1]
+
+np.arange(1, -1, -1.0)
+
+@jit()
 def fuck_numba():
-    qwe = np.ones((5,1))
-    asd = np.array([[0., 1., 2.]])
-    fff = np.dot(qwe, asd) * 3 - asd
-    return fff
+    qwe = np.array([[1, 2, 3], [2, 3, 4]])
+    asd = np.array([[1, 2, 3], [2, 3, 4]])
+    fff = qwe * asd
+    a = sorted(np.argpartition(fff.flatten(), -3)[-3:], reverse = True)
+    return a
 
 print(fuck_numba())
+
+
+t = time.time()
+def fun():
+    asdf = np.ones((2,500000))
+    for n in range(500000):
+        for m in range(2):
+            asdf[n, m] = 5
+    return asdf
+print(time.time() - t)

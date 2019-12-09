@@ -125,37 +125,62 @@ def risk_analysis_v4(sorted_prices, current_price, fixed_commission, contract_co
     return [percent_in_money, hist_return_avg, risk_money]
 
 
-# numba slow as fuck for some reason
-# @jit(parallel = False, fastmath=True, nopython = True)
-def find_best_v2(list_len, percent_in_money, historical_return_avg, sorted_prices,
-                 strike_date_index, days_till_expiry):
+def find_best_v2(percent_in_money, historical_return_avg, sorted_prices,
+                 in_money_thres, strike_date_index, days_till_expiry,
+                 call_sell_max, put_sell_max):
+    density = 10
+    list_len = 10
+    num_groups = int((100 - in_money_thres) / density)
+    best_returns_final = np.zeros((1, 9))
     [npages, nrows, ncols] = percent_in_money.shape
-    best_returns_final = np.zeros((list_len, 9))
-    best_returns_big = np.zeros((list_len * npages, 9))
+    num_to_take_ratio = 0.25
+    # Number of entries every day that we want to extract, arbitrary value
+    best_returns_big = np.zeros((1, 9))
     for aa in range(npages):
-        if aa <= int(npages / 2):
+        if aa <= call_sell_max:
             num_calls = aa
-            num_puts = int(npages / 2)
+            num_puts = put_sell_max
         else:
-            num_calls = int(npages / 2)
+            num_calls = call_sell_max
             num_puts = npages - aa - 1
+        # For pages with 0 calls and 0 puts, we only look at one column/row
+        if aa == 0:
+            holder1 = percent_in_money[aa, 0:1, :]  # 0:1 preserves 2-D shape
+            holder2 = historical_return_avg[aa, 0:1, :]
+            # Since we have one row in a 2-D ndarray
+            num_to_take = holder1.shape[1]
+        elif aa == call_sell_max + put_sell_max:
+            holder1 = percent_in_money[aa, :, 0:1]
+            holder2 = historical_return_avg[aa, :, 0:1]
+            # Since we have one column in a 2-D ndarray
+            num_to_take = holder1.shape[0]
+        else:
+            holder1 = percent_in_money[aa, :, :]
+            holder2 = historical_return_avg[aa, :, :]
+            num_to_take = int(num_to_take_ratio * nrows * ncols)
         # Method below takes into account th e percent chance of being in money, (avg return * percent) / day
-        daily_info = percent_in_money[aa, :, :] * historical_return_avg[aa, :, :] * 0.01 * \
+        daily_info = holder1 * holder2 * 0.01 * \
             (1 / days_till_expiry)
-        # Method below does not take into account the percent chance of being in money, only avg return / day
-        # daily_info = historical_return_avg[n, m] * (1 / days_till_expiry)
         # Find the values of the top 'daily info's
-        top_positions = sorted(np.partition(daily_info.flatten(), -list_len)[-list_len:],
+        top_positions = sorted(np.argpartition(daily_info.flatten(), -num_to_take)[-num_to_take:],
                                reverse=True)
-        for n in range(list_len):
-            best_returns = np.zeros((list_len, 9))
-            if top_positions[n] == 0:
+        # Converting matrix into rows with readible information
+        best_returns = np.zeros((num_to_take, 9))
+        for n in range(num_to_take):
+            if aa == 0:
+                call_row = 0
+                put_col = top_positions[n]
+            elif aa == call_sell_max + put_sell_max:
+                call_row = top_positions[n]
+                put_col = 0
+            else:
+                call_row = int(top_positions[n] / ncols)
+                put_col = int(np.mod(top_positions[n], ncols))
+            # There's no point filling out rest of the rows once we hit a 0 'expect return'
+            if daily_info[call_row, put_col] == 0:
                 break
-            position_holder = np.where(daily_info == top_positions[n])[0][0]
-            call_row = int(position_holder / ncols)
-            put_col = int(np.mod(position_holder, ncols))
             # Filling put the best returns matrix
-            best_returns[n, :] = np.array([top_positions[n], strike_date_index,
+            best_returns[n, :] = np.array([daily_info[call_row, put_col], strike_date_index,
                                            sorted_prices[call_row, 0],
                                            sorted_prices[call_row,
                                                          1], num_calls,
@@ -163,22 +188,30 @@ def find_best_v2(list_len, percent_in_money, historical_return_avg, sorted_price
                                            sorted_prices[put_col, 5], num_puts,
                                            percent_in_money[aa, call_row, put_col]])
         # Inserting this into the bigger 'best_returns' matrix
-        best_returns_big[aa * list_len:(aa + 1) * list_len, :] = best_returns
-    # Finding the top 10 in terms of best avg return per day
-    index_holder = int(list_len / 2)
-    top_avg_returns = sorted(np.partition(best_returns_big[:, 0], -index_holder)[-index_holder:],
-                             reverse=True)
-    top_chance_in_money = sorted(np.partition(best_returns_big[:, 8],  -index_holder)[-index_holder:],
-                                 reverse=True)
-    for n in range(index_holder):
-        holder_avg = np.where(
-            best_returns_big[:, 0] == top_avg_returns[n])[0][0]
-        holder_chance = np.where(
-            best_returns_big[:, 8] == top_chance_in_money[n])[0][0]
-        best_returns_final[n, :] = best_returns_big[holder_avg, :]
-        best_returns_final[n + index_holder,
-                           :] = best_returns_big[holder_chance, :]
+        best_returns_big = np.append(best_returns_big, best_returns, axis=0)
+    # Filtering our results
+    # Only want positive avg returns
+    best_returns_big = best_returns_big[best_returns_big[:, 0] > 0]
+    # Only want percent chance in money over thres
+    best_returns_big = best_returns_big[best_returns_big[:, 8]
+                                        > in_money_thres]
+    # Sorting our results into groups
+    for n in range(num_groups):
+        if n == num_groups - 1:
+            filtered = best_returns_big[best_returns_big[:, 8]
+                                        >= in_money_thres + density * n]
+        else:
+            filtered = best_returns_big[best_returns_big[:, 8]
+                                        >= in_money_thres + density * n]
+            filtered = filtered[filtered[:, 8] <
+                                in_money_thres + density * (n + 1)]
+        # Sorting the filtered results
+        if len(filtered) == 0:
+            da_best = np.zeros((1, 9))
+        else:
+            da_best = np.flip(filtered[np.argsort(filtered[:, 0])], axis=0)
+            if len(da_best) > list_len:
+                da_best = da_best[:list_len]
+        best_returns_final = np.append(best_returns_final, da_best, axis=0)
+
     return best_returns_final
-
-
-# def find_best_outer()
