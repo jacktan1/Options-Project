@@ -46,8 +46,8 @@ adjusted_current_price = my_fun.adjust_prices(
 
 print(time.time() - t)
 
-# Should be: range(0,len(all_options_data))
-for n in range(0, len(all_options_data)):
+# Should be: range(0, len(all_options_data))
+for n in range(len(all_options_data) - 1, len(all_options_data)):
     strike_date_index = n
     strike_date = expiry_dates_new[n]
     current_price_at_exp = adjusted_current_price.get(strike_date)
@@ -59,24 +59,22 @@ for n in range(0, len(all_options_data)):
     # Taking the percent change and applying to the current price
     hist_final_price = my_fun.historical_final_price(
         naked_history, current_price_at_exp, days_till_expiry)
-    # extracting options data
+    # Extracting options data
     daily_option_data = all_options_data[n]['chainPerRoot'][0]['chainPerStrikePrice']
-    # sorted prices of options based on cost, call price and put price (in that order)
-    print(time.time() - t)
+    # Sorted prices of options based on cost, call price and put price (in that order)
     sorted_prices = my_fun.price_sorting_v2(
         daily_option_data, strike_date, stock_of_interest)
-    print(time.time() - t)
     # Simulation based off our data
     [percent_chance_in_money, historical_return_avg, risk_money] = \
         my_fun_2.risk_analysis_v4(sorted_prices, current_price_at_exp, fixed_commission,
                                   contract_commission, assignment_fee, hist_final_price,
                                   call_sell_max, put_sell_max)
-    print(time.time() - t)
     best_returns_day = my_fun_2.find_best_v2(percent_chance_in_money, historical_return_avg,
                                              sorted_prices, in_money_thres, strike_date_index,
                                              days_till_expiry, call_sell_max, put_sell_max)
     best_returns_total = np.append(
         best_returns_total, best_returns_day, axis=0)
+    print(time.time() - t)
 
 # Removing all the 0 rows
 best_returns_total = best_returns_total[best_returns_total[:, 0] > 0]

@@ -102,9 +102,13 @@ b += 4
 
 qwe = np.ones((5,1)) * 2
 asd = np.ones((1,2)) *3
-np.multiply(qwe, asd)
+fuk_up = np.array([[0]])
+np.dot(qwe, fuk_up)
 
 qwe.shape
+
+asdasdasd = np.array([1,2,3,4])
+asdasdasd[-1]
 
 isinstance(qwe[0,0], np.float64)
 
@@ -156,3 +160,21 @@ def fun():
             asdf[n, m] = 5
     return asdf
 print(time.time() - t)
+
+aa = '1.0'
+int(float(aa))
+
+total_call_put = call_return[:, aa] + \
+    put_return[:, aa] / (aa + put_sell_max)
+# Seeing how many are 'in the money' and gathering risk money
+for cc in range(0, len(total_call_put)):
+    if total_call_put[cc] > 0:
+        num_in_money += 1
+    else:
+        risk_money_sum += total_call_put[cc]
+# Calculating the 'average' risk money
+if (len(total_call_put) - num_in_money) == 0:
+    risk_money_avg = 0
+else:
+    risk_money_avg = risk_money_sum / \
+        (len(total_call_put) - num_in_money)

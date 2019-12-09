@@ -61,7 +61,9 @@ def date_convert(dates):
 
 
 def extract_price_history_v2(stock_of_interest, API_key):
-    # Returns matrix with columns: date of price, closing price and
+    # Adjust price according to splits
+    split_multiplier = 1
+    # Returns matrix with columns: date of price, closing price and dividend amount
     # Getting data link
     data_url = 'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=' \
         + stock_of_interest + '&outputsize=full&apikey=' + API_key
@@ -73,8 +75,13 @@ def extract_price_history_v2(stock_of_interest, API_key):
     my_history_price = np.zeros((len(history_data), 3))
     # Extracting information we need
     for n in range(len(history_data)):
-        my_history_price[n] = [history_data.iloc[n, 0].timestamp() / 86400, history_data.iloc[n, 1]['4. close'],
-                               history_data.iloc[n, 1]['7. dividend amount']]
+        # Seeing if a split happened on the day before
+        if float(history_data.iloc[n - 1, 1]['8. split coefficient']) != 1 & n > 0:
+            split_multiplier = split_multiplier * float(history_data.iloc[n - 1, 1]['8. split coefficient'])
+        my_history_price[n] = [history_data.iloc[n, 0].timestamp() / 86400,
+                               float(history_data.iloc[n, 1]['4. close']) / split_multiplier,
+                               float(history_data.iloc[n, 1]['7. dividend amount'])]
+    # This reverses the list such that the oldest price is first
     my_history_price = my_history_price[::-1]
     return my_history_price
 
@@ -106,6 +113,7 @@ def get_naked_prices(my_history_price, current_price, num_days_a_year):
                         ((m + 1) / div_length) * last_div
                 last_div_index = n
     num_days_empty = (len(my_history_price) - 1) - last_div_index
+    # For the ends of the time period
     for n in range(num_days_empty):
         adjust_matrix[last_div_index + 1 + n] = - \
             ((n + 1) / num_days_quarter) * last_div

@@ -25,12 +25,10 @@ def risk_analysis_v4(sorted_prices, current_price, fixed_commission, contract_co
     for n in range(0, len(sorted_prices)):
         call_strike_price = sorted_prices[n, 0]
         call_premium = sorted_prices[n, 1]
-        call_size = sorted_prices[n, 2]
         # The columns represent put prices
         for m in range(0, len(sorted_prices)):
             put_strike_price = sorted_prices[m, 0]
             put_premium = sorted_prices[m, 5]
-            put_size = sorted_prices[m, 6]
             # Same no matter what
             call_base = np.minimum(
                 call_strike_price - final_prices, 0) + call_premium
@@ -49,7 +47,7 @@ def risk_analysis_v4(sorted_prices, current_price, fixed_commission, contract_co
                         call_base, call_num_matrix) * 100 - call_comm_matrix
                     # Puts
                     put_num_matrix = np.ones(
-                        (1, put_sell_max + 1)) * put_sell_max
+                        (1, call_sell_max + 1)) * put_sell_max
                     put_comm_matrix = \
                         (put_num_matrix * contract_commission + fixed_commission) * 2
                     put_return = np.dot(
@@ -82,7 +80,7 @@ def risk_analysis_v4(sorted_prices, current_price, fixed_commission, contract_co
                 elif my_type == 'diff_puts':
                     # Calls
                     call_num_matrix = np.ones(
-                        (1, call_sell_max)) * call_sell_max
+                        (1, put_sell_max)) * call_sell_max
                     call_comm_matrix = \
                         (call_num_matrix * contract_commission + fixed_commission) * 2
                     call_return = np.dot(
@@ -115,11 +113,11 @@ def risk_analysis_v4(sorted_prices, current_price, fixed_commission, contract_co
                             risk_money_avg = risk_money_sum / \
                                 (len(total_call_put) - num_in_money)
                         # Saving information into our matrices
-                        percent_in_money[aa + call_sell_max + 1, n, m] = \
+                        percent_in_money[-(aa + 1), n, m] = \
                             (num_in_money / len(total_call_put)) * 100
-                        hist_return_avg[aa + call_sell_max + 1, n, m] = \
+                        hist_return_avg[-(aa + 1), n, m] = \
                             np.sum(total_call_put) / len(total_call_put)
-                        risk_money[aa + call_sell_max + 1, n, m] = \
+                        risk_money[-(aa + 1), n, m] = \
                             risk_money_avg
 
     return [percent_in_money, hist_return_avg, risk_money]
@@ -137,6 +135,7 @@ def find_best_v2(percent_in_money, historical_return_avg, sorted_prices,
     # Number of entries every day that we want to extract, arbitrary value
     best_returns_big = np.zeros((1, 9))
     for aa in range(npages):
+        # Translate page number to number of call and put contracts
         if aa <= call_sell_max:
             num_calls = aa
             num_puts = put_sell_max
@@ -145,22 +144,18 @@ def find_best_v2(percent_in_money, historical_return_avg, sorted_prices,
             num_puts = npages - aa - 1
         # For pages with 0 calls and 0 puts, we only look at one column/row
         if aa == 0:
-            holder1 = percent_in_money[aa, 0:1, :]  # 0:1 preserves 2-D shape
-            holder2 = historical_return_avg[aa, 0:1, :]
+            holder2 = historical_return_avg[aa, 0:1, :] # 0:1 preserves 2-D shape
             # Since we have one row in a 2-D ndarray
-            num_to_take = holder1.shape[1]
+            num_to_take = holder2.shape[1]
         elif aa == call_sell_max + put_sell_max:
-            holder1 = percent_in_money[aa, :, 0:1]
             holder2 = historical_return_avg[aa, :, 0:1]
             # Since we have one column in a 2-D ndarray
-            num_to_take = holder1.shape[0]
+            num_to_take = holder2.shape[0]
         else:
-            holder1 = percent_in_money[aa, :, :]
             holder2 = historical_return_avg[aa, :, :]
             num_to_take = int(num_to_take_ratio * nrows * ncols)
-        # Method below takes into account th e percent chance of being in money, (avg return * percent) / day
-        daily_info = holder1 * holder2 * 0.01 * \
-            (1 / days_till_expiry)
+        # Method below is: avg return / day
+        daily_info = holder2 / days_till_expiry
         # Find the values of the top 'daily info's
         top_positions = sorted(np.argpartition(daily_info.flatten(), -num_to_take)[-num_to_take:],
                                reverse=True)
@@ -182,10 +177,11 @@ def find_best_v2(percent_in_money, historical_return_avg, sorted_prices,
             # Filling put the best returns matrix
             best_returns[n, :] = np.array([daily_info[call_row, put_col], strike_date_index,
                                            sorted_prices[call_row, 0],
-                                           sorted_prices[call_row,
-                                                         1], num_calls,
+                                           sorted_prices[call_row, 1],
+                                           num_calls,
                                            sorted_prices[put_col, 0],
-                                           sorted_prices[put_col, 5], num_puts,
+                                           sorted_prices[put_col, 5],
+                                           num_puts,
                                            percent_in_money[aa, call_row, put_col]])
         # Inserting this into the bigger 'best_returns' matrix
         best_returns_big = np.append(best_returns_big, best_returns, axis=0)
