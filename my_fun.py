@@ -76,7 +76,7 @@ def extract_price_history_v2(stock_of_interest, API_key):
     # Extracting information we need
     for n in range(len(history_data)):
         # Seeing if a split happened on the day before
-        if float(history_data.iloc[n - 1, 1]['8. split coefficient']) != 1 & n > 0:
+        if (float(history_data.iloc[n - 1, 1]['8. split coefficient']) != 1) & (n > 0):
             split_multiplier = split_multiplier * float(history_data.iloc[n - 1, 1]['8. split coefficient'])
         my_history_price[n] = [history_data.iloc[n, 0].timestamp() / 86400,
                                float(history_data.iloc[n, 1]['4. close']) / split_multiplier,
@@ -91,12 +91,12 @@ def extract_price_history_v2(stock_of_interest, API_key):
 
 
 # @jit(parallel=False, nopython=True)
-def get_naked_prices(my_history_price, current_price, num_days_a_year):
+def get_naked_prices(my_history_price, current_price, num_days_year):
     naked_history = my_history_price.copy()
     adjust_matrix = np.zeros((len(my_history_price), 1))
     last_div_index = 0
     last_div = 0
-    num_days_quarter = num_days_a_year / 4
+    num_days_quarter = num_days_year / 4
     # Below loop fills out all dividend data up to (and including) the last dividend date
     for n in range(len(my_history_price)):
         if my_history_price[n, 2] != 0:
@@ -198,8 +198,7 @@ def price_sorting_v2(option_data, strike_date, stock_name):
         call_put_data = q.markets_options(
             optionIds=list(id_holder[0:100]))['optionQuotes']
         call_put_data = call_put_data + \
-            q.markets_options(optionIds=list(id_holder[100:len(id_holder)]))[
-                'optionQuotes']
+            q.markets_options(optionIds=list(id_holder[100:len(id_holder)]))['optionQuotes']
     else:
         call_put_data = q.markets_options(
             optionIds=list(id_holder))['optionQuotes']

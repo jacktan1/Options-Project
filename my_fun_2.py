@@ -3,9 +3,9 @@ from numba import jit, njit, prange
 
 
 @jit(parallel=False, fastmath=True, nopython=True)
-def risk_analysis_v4(sorted_prices, current_price, fixed_commission, contract_commission,
-                     assignment_fee, final_prices, call_sell_max=3, put_sell_max=3):
-
+def risk_analysis_v4(price_history, sorted_prices, final_prices, current_price, fixed_commission,
+                     contract_commission, assignment_fee, base_weight, weight_gain, num_days_year,
+                     call_sell_max=3, put_sell_max=3):
     # Initializing the empty matrices. Ordering are as follows (page 1 - 7):
     # 0 Calls & 3 Puts
     # 1 Calls & 3 Puts
@@ -56,27 +56,42 @@ def risk_analysis_v4(sorted_prices, current_price, fixed_commission, contract_co
                     for aa in range(call_sell_max + 1):
                         num_in_money = 0
                         risk_money_sum = 0
-                        total_call_put = call_return[:, aa] + \
-                            put_return[:, aa] / (aa + put_sell_max)
-                        # Seeing how many are 'in the money' and gathering risk money
-                        for cc in range(0, len(total_call_put)):
-                            if total_call_put[cc] > 0:
-                                num_in_money += 1
+                        total_call_put = np.atleast_2d(call_return[:, aa] +
+                                                       put_return[:, aa] / (aa + put_sell_max))
+                        ### ----- ###
+                        # We will assume the following weight distribution
+                        # weights = np.ones((1, len(price_history))) * base_weight
+                        weights = np.atleast_2d(np.cos((2 * np.pi * np.arange(len(price_history)))
+                                                       / num_days_year) + base_weight)
+                        # Only taking needed section and reversing to match total_call_put
+                        weights = weights[::-1][0:1, :total_call_put.shape[1]]
+                        sum_weights = np.sum(weights)
+                        # results on first row, weights on second
+                        total_weighted = np.append(
+                            total_call_put, weights, axis=0)
+                        # Counting the total number of weights in money and sum of weighted risk money
+                        for cc in range(0, total_call_put.shape[1]):
+                            if total_weighted[0, cc] > 0:
+                                num_in_money += total_weighted[1, cc]
                             else:
-                                risk_money_sum += total_call_put[cc]
+                                risk_money_sum += \
+                                    total_weighted[0, cc] * \
+                                    total_weighted[1, cc]
                         # Calculating the 'average' risk money
-                        if (len(total_call_put) - num_in_money) == 0:
+                        if (sum_weights - num_in_money) == 0:
                             risk_money_avg = 0
                         else:
                             risk_money_avg = risk_money_sum / \
-                                (len(total_call_put) - num_in_money)
-                        # Saving information into our matrices
-                        percent_in_money[aa, n, m] = \
-                            (num_in_money / len(total_call_put)) * 100
-                        hist_return_avg[aa, n, m] = \
-                            np.sum(total_call_put) / len(total_call_put)
-                        risk_money[aa, n, m] = \
-                            risk_money_avg
+                                (sum_weights - num_in_money)
+                        # Calculating percent in money
+                        percent = (num_in_money / sum_weights) * 100
+                        # Calculating total return avg
+                        avg = np.sum(
+                            total_weighted[0, :] * total_weighted[1, :]) / sum_weights
+                        ### ----- ###
+                        percent_in_money[aa, n, m] = percent
+                        hist_return_avg[aa, n, m] = avg
+                        risk_money[aa, n, m] = risk_money_avg
                 elif my_type == 'diff_puts':
                     # Calls
                     call_num_matrix = np.ones(
@@ -98,37 +113,49 @@ def risk_analysis_v4(sorted_prices, current_price, fixed_commission, contract_co
                     for aa in range(put_sell_max):
                         num_in_money = 0
                         risk_money_sum = 0
-                        total_call_put = call_return[:, aa] + \
-                            put_return[:, aa] / (aa + call_sell_max)
-                        # Seeing how many are 'in the money' and gathering risk money
-                        for cc in range(0, len(total_call_put)):
-                            if total_call_put[cc] > 0:
-                                num_in_money += 1
+                        total_call_put = np.atleast_2d(call_return[:, aa] +
+                                                       put_return[:, aa] / (aa + call_sell_max))
+                        ### ----- ###
+                        # We will assume the following weight distribution
+                        # weights = np.ones((1, len(price_history))) * base_weight
+                        weights = np.atleast_2d(np.cos((2 * np.pi * np.arange(len(price_history)))
+                                                       / num_days_year) + base_weight)
+                        # Only taking needed section and reversing to match total_call_put
+                        weights = weights[::-1][0:1, :total_call_put.shape[1]]
+                        sum_weights = np.sum(weights)
+                        # results on first row, weights on second
+                        total_weighted = np.append(
+                            total_call_put, weights, axis=0)
+                        # Counting the total number of weights in money and sum of weighted risk money
+                        for cc in range(0, total_call_put.shape[1]):
+                            if total_weighted[0, cc] > 0:
+                                num_in_money += total_weighted[1, cc]
                             else:
-                                risk_money_sum += total_call_put[cc]
+                                risk_money_sum += \
+                                    total_weighted[0, cc] * \
+                                    total_weighted[1, cc]
                         # Calculating the 'average' risk money
-                        if (len(total_call_put) - num_in_money) == 0:
+                        if (sum_weights - num_in_money) == 0:
                             risk_money_avg = 0
                         else:
                             risk_money_avg = risk_money_sum / \
-                                (len(total_call_put) - num_in_money)
-                        # Saving information into our matrices
-                        percent_in_money[-(aa + 1), n, m] = \
-                            (num_in_money / len(total_call_put)) * 100
-                        hist_return_avg[-(aa + 1), n, m] = \
-                            np.sum(total_call_put) / len(total_call_put)
-                        risk_money[-(aa + 1), n, m] = \
-                            risk_money_avg
-
+                                (sum_weights - num_in_money)
+                        # Calculating percent in money
+                        percent = (num_in_money / sum_weights) * 100
+                        # Calculating total return avg
+                        avg = np.sum(
+                            total_weighted[0, :] * total_weighted[1, :]) / sum_weights
+                        ### ----- ###
+                        percent_in_money[-(aa + 1), n, m] = percent
+                        hist_return_avg[-(aa + 1), n, m] = avg
+                        risk_money[-(aa + 1), n, m] = risk_money_avg
     return [percent_in_money, hist_return_avg, risk_money]
 
 
 def find_best_v2(percent_in_money, historical_return_avg, sorted_prices,
                  in_money_thres, strike_date_index, days_till_expiry,
-                 call_sell_max, put_sell_max):
-    density = 10
-    list_len = 10
-    num_groups = int((100 - in_money_thres) / density)
+                 segment_range, list_len, call_sell_max, put_sell_max):
+    num_groups = int((100 - in_money_thres) / segment_range)
     best_returns_final = np.zeros((1, 9))
     [npages, nrows, ncols] = percent_in_money.shape
     num_to_take_ratio = 0.25
@@ -144,7 +171,8 @@ def find_best_v2(percent_in_money, historical_return_avg, sorted_prices,
             num_puts = npages - aa - 1
         # For pages with 0 calls and 0 puts, we only look at one column/row
         if aa == 0:
-            holder2 = historical_return_avg[aa, 0:1, :] # 0:1 preserves 2-D shape
+            # 0:1 preserves 2-D shape
+            holder2 = historical_return_avg[aa, 0:1, :]
             # Since we have one row in a 2-D ndarray
             num_to_take = holder2.shape[1]
         elif aa == call_sell_max + put_sell_max:
@@ -194,13 +222,13 @@ def find_best_v2(percent_in_money, historical_return_avg, sorted_prices,
     # Sorting our results into groups
     for n in range(num_groups):
         if n == num_groups - 1:
-            filtered = best_returns_big[best_returns_big[:, 8]
-                                        >= in_money_thres + density * n]
+            filtered = best_returns_big[
+                best_returns_big[:, 8] >= in_money_thres + segment_range * n]
         else:
-            filtered = best_returns_big[best_returns_big[:, 8]
-                                        >= in_money_thres + density * n]
-            filtered = filtered[filtered[:, 8] <
-                                in_money_thres + density * (n + 1)]
+            filtered = best_returns_big[
+                best_returns_big[:, 8] >= in_money_thres + segment_range * n]
+            filtered = filtered[
+                filtered[:, 8] < in_money_thres + segment_range * (n + 1)]
         # Sorting the filtered results
         if len(filtered) == 0:
             da_best = np.zeros((1, 9))

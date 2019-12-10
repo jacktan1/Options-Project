@@ -105,17 +105,26 @@ asd = np.ones((1,2)) *3
 fuk_up = np.array([[0]])
 np.dot(qwe, fuk_up)
 
-qwe.shape
+qwe[:, 0:qwe.shape[1]]
 
-asdasdasd = np.array([1,2,3,4])
-asdasdasd[-1]
+asdasd = np.ones((1, 3)) * 3
+asdasd[0, 1] = 5
+float(np.sum(asdasd, axis = 1))
 
-isinstance(qwe[0,0], np.float64)
+asdasd * asdf
+
+asdf = np.ones((1, 3)) * 3
+np.append(asdasd, asdf, axis = 0)
+
+np.arange(3).shape
 
 np.array([[]]) == [[]]
 
 aaa[0, :, :]
 aass = np.array([[74, 74, 3], [75, 80, 74], [1, 2, 3]])
+np.append(aass[:,1], aass[:,2], axis = 0)
+
+
 print(aass[:,0])
 asdasd = np.argpartition(aass.flatten(), -9)
 asdasd
@@ -125,29 +134,20 @@ lmao
 aass
 np.where(aass == 75)[0][0]
 
-aaa = np.array([[74, 74, 3], [4, 5, 6]])
-aaa
-asa = np.zeros((1,3))
-np.append(asa, aass, axis = 0)
-
-aass.flatten()
-
-bbb = np.append(aaa, aass, axis = 0)
-bbb
-
-np.flip(bbb, axis = 0)
+aaa = np.array([[4, 4], [4, 5], [1, 2]])
+np.sum(aaa[:, 0] * aaa[:, 1]) / (4+5+2)
 
 aaa[aaa[:,1] > 700][:,1]
 
 np.arange(1, -1, -1.0)
 
-@jit()
+@jit(parallel=False, fastmath=True, nopython=True)
 def fuck_numba():
-    qwe = np.array([[1, 2, 3], [2, 3, 4]])
-    asd = np.array([[1, 2, 3], [2, 3, 4]])
-    fff = qwe * asd
-    a = sorted(np.argpartition(fff.flatten(), -3)[-3:], reverse = True)
-    return a
+    num_days_year = 252
+    base_weight = 1
+    weights = np.cos((2 * np.pi * np.arange(10)) / num_days_year) + base_weight
+    weights = np.atleast_2d(weights[::-1][:10])
+    return weights.shape
 
 print(fuck_numba())
 
@@ -161,11 +161,12 @@ def fun():
     return asdf
 print(time.time() - t)
 
-aa = '1.0'
-int(float(aa))
+aaa = np.cos((2 * np.pi * np.arange(4)) / 4) + 1
+aaa
+aaa[::-1][:3]
 
-total_call_put = call_return[:, aa] + \
-    put_return[:, aa] / (aa + put_sell_max)
+
+
 # Seeing how many are 'in the money' and gathering risk money
 for cc in range(0, len(total_call_put)):
     if total_call_put[cc] > 0:
