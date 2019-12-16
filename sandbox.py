@@ -100,12 +100,11 @@ a.all()
 b = c = d = copy.deepcopy(a)
 b += 4
 
-qwe = np.ones((5,1)) * 2
-asd = np.ones((1,2)) *3
-fuk_up = np.array([[0]])
-np.dot(qwe, fuk_up)
+qwe = np.ones((3,1)) * 2
+asd = np.ones((1,3)) * 3
+np.dot(qwe, asd)
 
-qwe[:, 0:qwe.shape[1]]
+qwe.shape[1]
 
 asdasd = np.ones((1, 3)) * 3
 asdasd[0, 1] = 5
@@ -165,7 +164,9 @@ aaa = np.cos((2 * np.pi * np.arange(4)) / 4) + 1
 aaa
 aaa[::-1][:3]
 
+np.busday_count('2020-01-01', '2020-01-02')
 
+6 % 6
 
 # Seeing how many are 'in the money' and gathering risk money
 for cc in range(0, len(total_call_put)):

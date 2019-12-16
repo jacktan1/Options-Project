@@ -1,5 +1,5 @@
 import numpy as np
-from numba import jit, njit, prange
+from numba import jit
 
 
 @jit(parallel=False, fastmath=True, nopython=True)
@@ -60,9 +60,9 @@ def risk_analysis_v4(price_history, sorted_prices, final_prices, current_price, 
                                                        put_return[:, aa] / (aa + put_sell_max))
                         ### ----- ###
                         # We will assume the following weight distribution
-                        # weights = np.ones((1, len(price_history))) * base_weight
-                        weights = np.atleast_2d(np.cos((2 * np.pi * np.arange(len(price_history)))
-                                                       / num_days_year) + base_weight)
+                        weights = np.atleast_2d(
+                            (weight_gain / 2) * np.cos((2 * np.pi * np.arange(len(price_history))) / num_days_year) +
+                            (weight_gain / 2) + base_weight)
                         # Only taking needed section and reversing to match total_call_put
                         weights = weights[::-1][0:1, :total_call_put.shape[1]]
                         sum_weights = np.sum(weights)
@@ -82,7 +82,7 @@ def risk_analysis_v4(price_history, sorted_prices, final_prices, current_price, 
                             risk_money_avg = 0
                         else:
                             risk_money_avg = risk_money_sum / \
-                                (sum_weights - num_in_money)
+                                             (sum_weights - num_in_money)
                         # Calculating percent in money
                         percent = (num_in_money / sum_weights) * 100
                         # Calculating total return avg
@@ -106,7 +106,7 @@ def risk_analysis_v4(price_history, sorted_prices, final_prices, current_price, 
                         put_sell_max - 1, -1., -1.0).reshape(1, put_sell_max)
                     put_comm_matrix = \
                         (put_num_matrix * contract_commission + fixed_commission) * 2
-                    put_comm_matrix[0][put_sell_max - 1] = 0
+                    put_comm_matrix[0][-1] = 0
                     put_return = np.dot(
                         put_base, put_num_matrix) * 100 - put_comm_matrix
                     # Calculations
@@ -114,12 +114,12 @@ def risk_analysis_v4(price_history, sorted_prices, final_prices, current_price, 
                         num_in_money = 0
                         risk_money_sum = 0
                         total_call_put = np.atleast_2d(call_return[:, aa] +
-                                                       put_return[:, aa] / (aa + call_sell_max))
+                                                       put_return[:, aa] / (put_sell_max - aa - 1 + call_sell_max))
                         ### ----- ###
                         # We will assume the following weight distribution
-                        # weights = np.ones((1, len(price_history))) * base_weight
-                        weights = np.atleast_2d(np.cos((2 * np.pi * np.arange(len(price_history)))
-                                                       / num_days_year) + base_weight)
+                        weights = np.atleast_2d(
+                            (weight_gain / 2) * np.cos((2 * np.pi * np.arange(len(price_history))) / num_days_year) +
+                            (weight_gain / 2) + base_weight)
                         # Only taking needed section and reversing to match total_call_put
                         weights = weights[::-1][0:1, :total_call_put.shape[1]]
                         sum_weights = np.sum(weights)
@@ -139,7 +139,7 @@ def risk_analysis_v4(price_history, sorted_prices, final_prices, current_price, 
                             risk_money_avg = 0
                         else:
                             risk_money_avg = risk_money_sum / \
-                                (sum_weights - num_in_money)
+                                             (sum_weights - num_in_money)
                         # Calculating percent in money
                         percent = (num_in_money / sum_weights) * 100
                         # Calculating total return avg
@@ -187,7 +187,7 @@ def find_best_v2(percent_in_money, historical_return_avg, sorted_prices,
         # Find the values of the top 'daily info's
         top_positions = sorted(np.argpartition(daily_info.flatten(), -num_to_take)[-num_to_take:],
                                reverse=True)
-        # Converting matrix into rows with readible information
+        # Converting matrix into rows with readable information
         best_returns = np.zeros((num_to_take, 9))
         for n in range(num_to_take):
             if aa == 0:
@@ -216,7 +216,7 @@ def find_best_v2(percent_in_money, historical_return_avg, sorted_prices,
     # Filtering our results
     # Only want positive avg returns
     best_returns_big = best_returns_big[best_returns_big[:, 0] > 0]
-    # Only want percent chance in money over thres
+    # Only want percent chance in money over threshold
     best_returns_big = best_returns_big[best_returns_big[:, 8]
                                         > in_money_thres]
     # Sorting our results into groups

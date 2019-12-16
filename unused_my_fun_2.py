@@ -1,5 +1,5 @@
 # This version of risk analysis actually looks at whether there are people buying enough contracts
-# as we are selling. And I believe it sucessfully does so (in a hacky way). However it became a whole
+# as we are selling. And I believe it successfully does so (in a hacky way). However it became a whole
 # different story when it came to the `find best`, and I would have to completely rewrite that code.
 
 # As a result, I abandoned this code here, since so much effort needed to complete this for minimal benefits
@@ -9,7 +9,6 @@
 @jit(parallel=False, fastmath=True, nopython=True)
 def risk_analysis_v4(sorted_prices, current_price, fixed_commission, contract_commission,
                      assignment_fee, final_prices, call_sell_max=3, put_sell_max=3):
-
     # Initializing the empty matrices. Ordering are as follows (page 1 - 7):
     # 0 Calls & 3 Puts
     # 1 Calls & 3 Puts
@@ -77,7 +76,7 @@ def risk_analysis_v4(sorted_prices, current_price, fixed_commission, contract_co
                         risk_money_sum = 0
                         if aa + put_max != 0:
                             total_call_put = call_return[:, aa] + \
-                                put_return[:, aa] / (aa + put_max)
+                                             put_return[:, aa] / (aa + put_max)
                         else:
                             total_call_put = (call_return[:, aa] + put_return[:, aa]) * 0
                         # Seeing how many are 'in the money' and gathering risk money
@@ -91,7 +90,7 @@ def risk_analysis_v4(sorted_prices, current_price, fixed_commission, contract_co
                             risk_money_avg = 0
                         else:
                             risk_money_avg = risk_money_sum / \
-                                (len(total_call_put) - num_in_money)
+                                             (len(total_call_put) - num_in_money)
                         # Saving information into our matrices
                         percent_in_money[aa, n, m] = \
                             (num_in_money / len(total_call_put)) * 100
@@ -123,7 +122,7 @@ def risk_analysis_v4(sorted_prices, current_price, fixed_commission, contract_co
                             risk_money_sum = 0
                             if aa + call_max != 0:
                                 total_call_put = call_return[:, aa] + \
-                                    put_return[:, aa] / (aa + call_max)
+                                                 put_return[:, aa] / (aa + call_max)
                             else:
                                 total_call_put = (call_return[:, aa] + put_return[:, aa]) * 0
                             # Seeing how many are 'in the money' and gathering risk money
@@ -137,12 +136,12 @@ def risk_analysis_v4(sorted_prices, current_price, fixed_commission, contract_co
                                 risk_money_avg = 0
                             else:
                                 risk_money_avg = risk_money_sum / \
-                                    (len(total_call_put) - num_in_money)
+                                                 (len(total_call_put) - num_in_money)
                             # Saving information into our matrices
-                            percent_in_money[-(aa+1), n, m] = \
+                            percent_in_money[-(aa + 1), n, m] = \
                                 (num_in_money / len(total_call_put)) * 100
-                            hist_return_avg[-(aa+1), n, m] = \
+                            hist_return_avg[-(aa + 1), n, m] = \
                                 np.sum(total_call_put) / len(total_call_put)
-                            risk_money[-(aa+1), n, m] = \
+                            risk_money[-(aa + 1), n, m] = \
                                 risk_money_avg
     return [percent_in_money, hist_return_avg, risk_money]

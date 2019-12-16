@@ -3,23 +3,23 @@ import datetime as dt
 import re
 import pandas as pd
 from questrade_api import Questrade
-import urllib
-import math
 import os
-from numba import prange, jit
+from numba import jit
 
 q = Questrade()
+
 
 ### --- Start of Functions --- ###
 
 
-def get_current_price(stock_of_interest, stock_Id, API_key):
-    price = q.markets_quote(stock_Id)['quotes'][0]['lastTradePrice']
-    if (price == None):
+def get_current_price(stock_of_interest, stock_id, api_key):
+    price = q.markets_quote(stock_id)['quotes'][0]['lastTradePrice']
+    if price is None:
         price = pd.read_csv(str('https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=' +
-                                stock_of_interest + '&apikey=' + API_key + '&datatype=csv'))
+                                stock_of_interest + '&apikey=' + api_key + '&datatype=csv'))
         price = float(price['price'])
     return price
+
 
 ### -------- ###
 
@@ -29,6 +29,7 @@ def get_expiry_dates(all_options_data):
     for n in range(0, len(all_options_data)):
         expiry_dates.append(all_options_data[n]['expiryDate'])
     return expiry_dates
+
 
 ### -------- ###
 
@@ -55,18 +56,19 @@ def date_convert(dates):
                 date_decomp[0][1]), int(date_decomp[0][2])))
     return actual_dates
 
+
 ### -------- ###
 
 # Extracts the historical daily closing price of a given stock from AlphaVantage API
 
 
-def extract_price_history_v2(stock_of_interest, API_key):
+def extract_price_history_v2(stock_of_interest, api_key):
     # Adjust price according to splits
     split_multiplier = 1
     # Returns matrix with columns: date of price, closing price and dividend amount
     # Getting data link
     data_url = 'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=' \
-        + stock_of_interest + '&outputsize=full&apikey=' + API_key
+               + stock_of_interest + '&outputsize=full&apikey=' + api_key
     # Extracting the json information from the site
     history_data = pd.read_json(data_url)
     # Actual data starts at row 5
@@ -81,9 +83,12 @@ def extract_price_history_v2(stock_of_interest, API_key):
         my_history_price[n] = [history_data.iloc[n, 0].timestamp() / 86400,
                                float(history_data.iloc[n, 1]['4. close']) / split_multiplier,
                                float(history_data.iloc[n, 1]['7. dividend amount'])]
-    # This reverses the list such that the oldest price is first
+    # Reverse list such that the oldest price is first
     my_history_price = my_history_price[::-1]
+    # Removes the last element, since that is the current price, not history
+    my_history_price = my_history_price[:-1, :]
     return my_history_price
+
 
 ### -------- ###
 
@@ -92,8 +97,9 @@ def extract_price_history_v2(stock_of_interest, API_key):
 
 # @jit(parallel=False, nopython=True)
 def get_naked_prices(my_history_price, current_price, num_days_year):
-    naked_history = my_history_price.copy()
-    adjust_matrix = np.zeros((len(my_history_price), 1))
+    # Since we want to preserve all columns except one, we just make a deepcopy (np.copy does this)
+    naked_history = np.copy(my_history_price)
+    adjust_matrix = np.zeros((my_history_price.shape[0], 1))
     last_div_index = 0
     last_div = 0
     num_days_quarter = num_days_year / 4
@@ -101,27 +107,28 @@ def get_naked_prices(my_history_price, current_price, num_days_year):
     for n in range(len(my_history_price)):
         if my_history_price[n, 2] != 0:
             last_div = my_history_price[n, 2]
+            # Used for the beginning when there are no dividend prices before
             if last_div_index == 0:
-                for m in range(n + 1):
-                    adjust_matrix[m] = -((num_days_quarter -
-                                          n + m) / num_days_quarter) * last_div
-                last_div_index = n
+                for m in range(n):
+                    adjust_matrix[m] = -((num_days_quarter - (n - 1) + m) / num_days_quarter) * last_div
+                # We want to record the date before the ex-div date, since it has all the dividends priced in
+                last_div_index = n - 1
+            # Used during large majority of the script
             elif last_div_index != 0:
-                div_length = n - last_div_index
+                div_length = (n - 1) - last_div_index
                 for m in range(div_length):
-                    adjust_matrix[last_div_index + 1 + m] = - \
-                        ((m + 1) / div_length) * last_div
-                last_div_index = n
+                    adjust_matrix[last_div_index + 1 + m] = - ((m + 1) / div_length) * last_div
+                last_div_index = n - 1
+    # For the end, when dont know the next dividend date. We could find out via API call, but precision not important,
+    # since we are only concerned with percentage changes day to day
     num_days_empty = (len(my_history_price) - 1) - last_div_index
-    # For the ends of the time period
     for n in range(num_days_empty):
-        adjust_matrix[last_div_index + 1 + n] = - \
-            ((n + 1) / num_days_quarter) * last_div
-        if (n == num_days_empty - 1):
-            naked_current_price = current_price - \
-                ((n + 2) / num_days_quarter) * last_div
+        adjust_matrix[last_div_index + n + 1] = -((n + 1) / num_days_quarter) * last_div
+    # Since the current date is one after the last recorded date, we add 1 more
+    naked_current_price = current_price - (((num_days_empty + 1) / num_days_quarter) * last_div)
     naked_history[:, 1] = my_history_price[:, 1] + adjust_matrix[:, 0]
     return naked_history, naked_current_price, last_div_index
+
 
 ### -------- ###
 
@@ -129,9 +136,10 @@ def get_naked_prices(my_history_price, current_price, num_days_year):
 # price at the expiry date.
 
 
-def adjust_prices(expiry_dates_new, naked_current_price, naked_history, IEX_token, stock_of_interest, last_div_index):
+def adjust_prices(expiry_dates_new, naked_current_price, naked_history, api_key, stock_of_interest, last_div_index):
     data_url = 'https://cloud.iexapis.com/stable/stock/' + stock_of_interest + '/dividends/next?token=' \
-        + IEX_token + '&format=csv'
+               + api_key + '&format=csv'
+    # Getting the date one day before ex-dividend date
     last_div_date = pd.to_datetime(
         naked_history[last_div_index, 0], unit='D').asm8.astype('<M8[D]')
     exp_dates_adjusted_current_price = {}
@@ -140,25 +148,27 @@ def adjust_prices(expiry_dates_new, naked_current_price, naked_history, IEX_toke
         next_ex_date = pd.to_datetime(
             next_div_data.iloc[0, 0]).asm8.astype('<M8[D]')
         div_price = next_div_data.iloc[0, 4]
-        # Gotta subtract one since the next ex Dividend Date is 1 day after the max
+        # Gotta subtract one since the max is one day before the next ex-dividend date
         num_days_div = np.busday_count(last_div_date, next_ex_date) - 1
     except:
         next_ex_date_int = naked_history[last_div_index, 0] + int(365 / 4)
         next_ex_date = pd.to_datetime(
             next_ex_date_int, unit='D').asm8.astype('<M8[D]')
         div_price = naked_history[last_div_index, 2]
+        # Don't subtract one since we are adding a quarter onto the day before last ex-dividend date
         num_days_div = np.busday_count(last_div_date, next_ex_date)
     for n in range(len(expiry_dates_new)):
         expiry_date = expiry_dates_new[n]
         num_days = np.busday_count(last_div_date, expiry_date) % num_days_div
         if num_days == 0:
+            # If expiry date is one day before next ex-dividend date, then price has all dividend priced in
             scaled_current_price = naked_current_price + div_price
         else:
-            inflated_at_expiry = (num_days / num_days_div) * div_price
-            scaled_current_price = naked_current_price + inflated_at_expiry
+            scaled_current_price = (num_days / num_days_div) * div_price + naked_current_price
         exp_dates_adjusted_current_price.update(
             {expiry_date: scaled_current_price})
     return exp_dates_adjusted_current_price
+
 
 ### -------- ###
 
@@ -174,6 +184,7 @@ def historical_final_price(naked_price_history, current_price, days_till_expiry)
                   naked_price_history[n, 1]) / naked_price_history[n, 1]
         final_prices[n] = current_price * (1 + holder)
     return final_prices
+
 
 ### -------- ###
 
@@ -198,24 +209,24 @@ def price_sorting_v2(option_data, strike_date, stock_name):
         call_put_data = q.markets_options(
             optionIds=list(id_holder[0:100]))['optionQuotes']
         call_put_data = call_put_data + \
-            q.markets_options(optionIds=list(id_holder[100:len(id_holder)]))['optionQuotes']
+                        q.markets_options(optionIds=list(id_holder[100:len(id_holder)]))['optionQuotes']
     else:
         call_put_data = q.markets_options(
             optionIds=list(id_holder))['optionQuotes']
     for n in range(0, len(option_data)):
         bid_call_price = call_put_data[2 * n]['bidPrice']
-        if bid_call_price == None:
+        if bid_call_price is None:
             bid_call_price = 0
         ask_call_price = call_put_data[2 * n]['askPrice']
-        if ask_call_price == None:
+        if ask_call_price is None:
             ask_call_price = 0
         bid_call_size = call_put_data[2 * n]['bidSize']
         ask_call_size = call_put_data[2 * n]['askSize']
         bid_put_price = call_put_data[2 * n + 1]['bidPrice']
-        if bid_put_price == None:
+        if bid_put_price is None:
             bid_put_price = 0
         ask_put_price = call_put_data[2 * n + 1]['askPrice']
-        if ask_put_price == None:
+        if ask_put_price is None:
             ask_put_price = 0
         bid_put_size = call_put_data[2 * n + 1]['bidSize']
         ask_put_size = call_put_data[2 * n + 1]['askSize']
@@ -242,13 +253,14 @@ def price_sorting_v2(option_data, strike_date, stock_name):
     if data_down < len(price_holder):
         col_names = ['Strike Price', 'Call bid price', 'Call bid size', 'Call ask price', 'Call ask size',
                      'Put bid price', 'Put bid size', 'Put ask price', 'Put ask size']
-        if (os.path.exists('bid_history/' + stock_name) == False):
+        if not os.path.exists('bid_history/' + stock_name):
             os.makedirs('bid_history/' + stock_name)
         pd.DataFrame(columns=col_names, data=price_holder).to_csv('bid_history/' + stock_name + '/' +
                                                                   str(strike_date) +
                                                                   '.csv', encoding='utf-8', index=True)
         print('Questrade data saved locally!')
     return price_holder
+
 
 ### -------- ###
 
@@ -263,12 +275,13 @@ def beautify_to_df(best_returns, expiry_dates):
     my_results['Strike Date'] = expiry_dates[date_indices]
     return my_results
 
+
 ### -------- ###
 
 
 def user_interaction(best_returns, my_results):
     finished = False
-    while (finished == False):
+    while not finished:
         print(my_results)
         my_select = input(
             'Which option would you like to exercise? (input index number(s) as a consecutive string e.g. 12345)')
@@ -282,15 +295,15 @@ def user_interaction(best_returns, my_results):
         print(selected_pretty)
         my_confirm = input(
             'Are you sure you want to sell these options? (y/n)')
-        if (my_confirm == 'y'):
+        if my_confirm == 'y':
             selected = best_returns[my_select]
             finished = True
-        elif (my_confirm == 'n'):
+        elif my_confirm == 'n':
             my_confirm = input(
                 'Order cancelled. Do you want to reselect(1) or terminate process(2)? (1/2)')
-            if (my_confirm == '1'):
+            if my_confirm == '1':
                 continue
-            elif (my_confirm == '2'):
+            elif my_confirm == '2':
                 finished = True
                 continue
             else:

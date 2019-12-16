@@ -6,11 +6,11 @@ import my_fun
 import my_fun_2
 
 ### --- Initialization --- ###
-# Questrade
+# Questrade Initialization
 q = Questrade()
-stock_of_interest = 'JNJ'
+stock_of_interest = 'CVX'
 stock_data = q.symbols_search(prefix=stock_of_interest)
-stock_Id = stock_data['symbols'][0]['symbolId']
+stock_id = stock_data['symbols'][0]['symbolId']
 # API tokens
 alphaVan_token = 'U4G0AXZ62E77Z161'
 IEX_token = 'pk_8ae91e6a0b11401b88e3d2b71aae39a7'
@@ -30,34 +30,34 @@ list_len = 10
 best_returns_total = np.zeros((1, 9))
 # Parameters associated with price history weights
 base_weight = 1
-weight_gain = 1
+weight_gain = 5
 
 ### --- Main Script --- ###
 
 t = time.time()
 current_date = my_fun.date_convert(dates=q.time)
 current_price = my_fun.get_current_price(stock_of_interest=stock_of_interest,
-                                         stock_Id=stock_Id,
-                                         API_key=alphaVan_token)
+                                         stock_id=stock_id,
+                                         api_key=alphaVan_token)
 price_history = my_fun.extract_price_history_v2(stock_of_interest=stock_of_interest,
-                                                API_key=alphaVan_token)
+                                                api_key=alphaVan_token)
 [naked_history, naked_current_price, last_div_index] = \
     my_fun.get_naked_prices(my_history_price=price_history,
                             current_price=current_price,
                             num_days_year=num_days_year)
-all_options_data = q.symbol_options(stock_Id)['optionChain']
+all_options_data = q.symbol_options(stock_id)['optionChain']
 expiry_dates = my_fun.get_expiry_dates(all_options_data=all_options_data)
 expiry_dates_new = my_fun.date_convert(dates=expiry_dates)
 adjusted_current_price = my_fun.adjust_prices(expiry_dates_new=expiry_dates_new,
                                               naked_current_price=naked_current_price,
                                               naked_history=naked_history,
-                                              IEX_token=IEX_token,
+                                              api_key=IEX_token,
                                               stock_of_interest=stock_of_interest,
                                               last_div_index=last_div_index)
 print(time.time() - t)
 
 # Should be: range(0, len(all_options_data))
-for n in range(0, len(all_options_data)):
+for n in range(len(all_options_data) - 1, len(all_options_data)):
     strike_date_index = n
     strike_date = expiry_dates_new[n]
     current_price_at_exp = adjusted_current_price.get(strike_date)
@@ -107,11 +107,11 @@ for n in range(0, len(all_options_data)):
 # Removing all the 0 rows
 best_returns_total = best_returns_total[best_returns_total[:, 0] > 0]
 
-# best_returns_total = best_returns_total[best_returns_total[:, 0] > 0]
 my_results = my_fun.beautify_to_df(best_returns=best_returns_total,
                                    expiry_dates=expiry_dates_new)
-if (os.path.exists('results/' + stock_of_interest) == False):
+if not os.path.exists('results/' + stock_of_interest):
     os.makedirs('results/' + stock_of_interest)
 my_results.to_csv('results/' + stock_of_interest + '/' + stock_of_interest + '_' +
                   current_date.strftime('%Y-%m-%d') + '.csv', encoding='utf-8', index=True)
+print('yayeet')
 # my_fun.user_interaction(best_returns_total, my_results)
