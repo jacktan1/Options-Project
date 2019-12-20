@@ -100,15 +100,16 @@ def get_naked_prices(my_history_price, current_price, num_days_year):
     # Since we want to preserve all columns except one, we just make a deepcopy (np.copy does this)
     naked_history = np.copy(my_history_price)
     adjust_matrix = np.zeros((my_history_price.shape[0], 1))
-    last_div_index = 0
+    # We set it to an unique value so that the first dividend block does not run multiple times
+    last_div_index = False
     last_div = 0
     num_days_quarter = num_days_year / 4
     # Below loop fills out all dividend data up to (and including) the last dividend date
     for n in range(len(my_history_price)):
         if my_history_price[n, 2] != 0:
             last_div = my_history_price[n, 2]
-            # Used for the beginning when there are no dividend prices before
-            if last_div_index == 0:
+            # Used for the first dividend block when there are no dividend prices before
+            if last_div_index is False:
                 for m in range(n):
                     adjust_matrix[m] = -((num_days_quarter - (n - 1) + m) / num_days_quarter) * last_div
                 # We want to record the date before the ex-div date, since it has all the dividends priced in

@@ -166,7 +166,9 @@ aaa[::-1][:3]
 
 np.busday_count('2020-01-01', '2020-01-02')
 
-6 % 6
+hi = False
+hi = 23
+print(hi)
 
 # Seeing how many are 'in the money' and gathering risk money
 for cc in range(0, len(total_call_put)):

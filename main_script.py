@@ -113,5 +113,4 @@ if not os.path.exists('results/' + stock_of_interest):
     os.makedirs('results/' + stock_of_interest)
 my_results.to_csv('results/' + stock_of_interest + '/' + stock_of_interest + '_' +
                   current_date.strftime('%Y-%m-%d') + '.csv', encoding='utf-8', index=True)
-print('yayeet')
 # my_fun.user_interaction(best_returns_total, my_results)
