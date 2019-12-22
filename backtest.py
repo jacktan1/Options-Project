@@ -1,10 +1,10 @@
 import numpy as np
-from questrade_api import Questrade
+import pandas as pd
 import datetime
 import os
 import my_fun
 import my_fun_2
-import pandas as pd
+import my_fun_bt
 
 stock_symbol = 'BP'
 # API tokens
@@ -39,7 +39,7 @@ for n in range(len(price_history_all)):
         stock_price = price_history_all[n, 1]
         end_index = n
         break
-    elif n == len(price_history_all):
+    if n == len(price_history_all):
         assert stock_price != 0, 'Could not find closing price for that day!'
 # Getting price history available at that time
 price_history = price_history_all[:end_index, :]
@@ -53,11 +53,8 @@ expiry_dates = list(option_data.ExpirationDate.unique())
 for n in range(len(expiry_dates)):
     holder = datetime.datetime.strptime(expiry_dates[n], '%Y-%m-%d')
     expiry_dates[n] = holder.date()
-adjusted_current_price = my_fun.adjust_prices(expiry_dates=expiry_dates,
-                                              naked_current_price=naked_current_price,
-                                              naked_history=naked_history,
-                                              api_key=IEX_token,
-                                              stock_of_interest=stock_symbol,
-                                              last_div_index=last_div_index,
-                                              last_div_length=last_div_length)
+adjusted_current_price = my_fun_bt.adjust_prices_bt(expiry_dates=expiry_dates,
+                                                    naked_current_price=naked_current_price,
+                                                    price_history=price_history_all,
+                                                    last_div_index=last_div_index)
 print('nani')

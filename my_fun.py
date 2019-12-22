@@ -108,6 +108,7 @@ def get_naked_prices(my_history_price, current_price, num_days_year):
     for n in range(len(my_history_price)):
         if my_history_price[n, 2] != 0:
             last_div = my_history_price[n, 2]
+            assert last_div > 0, 'ptsd'
             # Used for the first dividend block when there are no dividend prices before
             if last_div_index is False:
                 for m in range(n):
@@ -116,6 +117,7 @@ def get_naked_prices(my_history_price, current_price, num_days_year):
                 last_div_index = n - 1
             # Used during large majority of the script
             else:
+                # div_length only measures the number of workdays
                 div_length = (n - 1) - last_div_index
                 for m in range(div_length):
                     adjust_matrix[last_div_index + 1 + m] = - ((m + 1) / div_length) * last_div
@@ -154,13 +156,15 @@ def adjust_prices(expiry_dates, naked_current_price, naked_history, api_key, sto
         num_days_div = np.busday_count(last_div_date, next_ex_date) - 1
         assert num_days_div > 0, 'There is probably delay in IEX data, using other method instead.'
     except:
-        # Assume that the next dividend payout is of same periodicity as the last
-        next_ex_date_int = naked_history[last_div_index, 0] + last_div_length
+        # Assume that the next dividend payout is of same periodicity as the last, convert bus. days into normal days
+        next_ex_date_int = naked_history[last_div_index, 0] + int(last_div_length * (7 / 5))
         next_ex_date = pd.to_datetime(
             next_ex_date_int, unit='D').asm8.astype('<M8[D]')
         assert np.busday_count(dt.datetime.date(dt.datetime.now()), next_ex_date) > 0, 'Something fucked up happened.'
         # Assume that the next dividend payout is the same as the last one
-        div_price = naked_history[last_div_index, 2]
+        # Add 1 since our index is one day before the ex-div (which contains the amount)
+        div_price = naked_history[last_div_index + 1, 2]
+        assert div_price > 0
         # Don't subtract one since we are adding a quarter onto the day before last ex-dividend date
         num_days_div = np.busday_count(last_div_date, next_ex_date)
     for n in range(len(expiry_dates)):
