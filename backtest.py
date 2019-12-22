@@ -53,5 +53,11 @@ expiry_dates = list(option_data.ExpirationDate.unique())
 for n in range(len(expiry_dates)):
     holder = datetime.datetime.strptime(expiry_dates[n], '%Y-%m-%d')
     expiry_dates[n] = holder.date()
-
+adjusted_current_price = my_fun.adjust_prices(expiry_dates=expiry_dates,
+                                              naked_current_price=naked_current_price,
+                                              naked_history=naked_history,
+                                              api_key=IEX_token,
+                                              stock_of_interest=stock_symbol,
+                                              last_div_index=last_div_index,
+                                              last_div_length=last_div_length)
 print('nani')
