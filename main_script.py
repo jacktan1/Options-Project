@@ -8,7 +8,7 @@ import my_fun_2
 ### --- Initialization --- ###
 # Questrade Initialization
 q = Questrade()
-stock_of_interest = 'CVX'
+stock_of_interest = 'BP'
 stock_data = q.symbols_search(prefix=stock_of_interest)
 stock_id = stock_data['symbols'][0]['symbolId']
 # API tokens
@@ -41,25 +41,25 @@ current_price = my_fun.get_current_price(stock_of_interest=stock_of_interest,
                                          api_key=alphaVan_token)
 price_history = my_fun.extract_price_history_v2(stock_of_interest=stock_of_interest,
                                                 api_key=alphaVan_token)
-[naked_history, naked_current_price, last_div_index] = \
+[naked_history, naked_current_price, last_div_index, last_div_length] = \
     my_fun.get_naked_prices(my_history_price=price_history,
                             current_price=current_price,
                             num_days_year=num_days_year)
 all_options_data = q.symbol_options(stock_id)['optionChain']
-expiry_dates = my_fun.get_expiry_dates(all_options_data=all_options_data)
-expiry_dates_new = my_fun.date_convert(dates=expiry_dates)
-adjusted_current_price = my_fun.adjust_prices(expiry_dates_new=expiry_dates_new,
+expiry_dates = my_fun.date_convert(dates=my_fun.get_expiry_dates(all_options_data=all_options_data))
+adjusted_current_price = my_fun.adjust_prices(expiry_dates=expiry_dates,
                                               naked_current_price=naked_current_price,
                                               naked_history=naked_history,
                                               api_key=IEX_token,
                                               stock_of_interest=stock_of_interest,
-                                              last_div_index=last_div_index)
+                                              last_div_index=last_div_index,
+                                              last_div_length=last_div_length)
 print(time.time() - t)
 
 # Should be: range(0, len(all_options_data))
-for n in range(len(all_options_data) - 1, len(all_options_data)):
+for n in range(0, len(all_options_data)):
     strike_date_index = n
-    strike_date = expiry_dates_new[n]
+    strike_date = expiry_dates[n]
     current_price_at_exp = adjusted_current_price.get(strike_date)
     # COULD ADD EXTRA 1 FOR THE WEEKEND! Or if early in the day / market hasn't opened
     days_till_expiry = np.busday_count(current_date, strike_date)
@@ -108,7 +108,7 @@ for n in range(len(all_options_data) - 1, len(all_options_data)):
 best_returns_total = best_returns_total[best_returns_total[:, 0] > 0]
 
 my_results = my_fun.beautify_to_df(best_returns=best_returns_total,
-                                   expiry_dates=expiry_dates_new)
+                                   expiry_dates=expiry_dates)
 if not os.path.exists('results/' + stock_of_interest):
     os.makedirs('results/' + stock_of_interest)
 my_results.to_csv('results/' + stock_of_interest + '/' + stock_of_interest + '_' +

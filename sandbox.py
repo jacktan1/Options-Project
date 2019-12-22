@@ -10,9 +10,7 @@ from numba import njit, prange, jit
 ### --- Initialization --- ###
 q = Questrade()
 finished = False
-# np.set_printoptions(threshold=np.inf)
-
-stock_of_interest = 'JNJ'
+stock_of_interest = 'aapl'
 stock_data = q.symbols_search(prefix=stock_of_interest)
 stock_Id = stock_data['symbols'][0]['symbolId']
 alphaVan_token = 'U4G0AXZ62E77Z161'
@@ -24,10 +22,11 @@ call_sell_max = 10
 put_sell_max = 10
 list_len = 50
 
+
+info = q.markets_quote(stock_Id)
+
+
 ### --- Main Script --- ###
-
-t = time.time()
-
 current_date = my_fun.date_convert(q.time)
 current_price = my_fun.get_current_price(
     stock_of_interest, stock_Id, alphaVan_token)
@@ -166,9 +165,7 @@ aaa[::-1][:3]
 
 np.busday_count('2020-01-01', '2020-01-02')
 
-hi = False
-hi = 23
-print(hi)
+print(dt.date(dt.now()))
 
 # Seeing how many are 'in the money' and gathering risk money
 for cc in range(0, len(total_call_put)):

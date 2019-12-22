@@ -80,7 +80,7 @@ def extract_price_history_v2(stock_of_interest, api_key):
         # Seeing if a split happened on the day before
         if (float(history_data.iloc[n - 1, 1]['8. split coefficient']) != 1) & (n > 0):
             split_multiplier = split_multiplier * float(history_data.iloc[n - 1, 1]['8. split coefficient'])
-        my_history_price[n] = [history_data.iloc[n, 0].timestamp() / 86400,
+        my_history_price[n] = [int(history_data.iloc[n, 0].timestamp() / 86400),
                                float(history_data.iloc[n, 1]['4. close']) / split_multiplier,
                                float(history_data.iloc[n, 1]['7. dividend amount'])]
     # Reverse list such that the oldest price is first
@@ -112,10 +112,10 @@ def get_naked_prices(my_history_price, current_price, num_days_year):
             if last_div_index is False:
                 for m in range(n):
                     adjust_matrix[m] = -((num_days_quarter - (n - 1) + m) / num_days_quarter) * last_div
-                # We want to record the date before the ex-div date, since it has all the dividends priced in
+                # We want to record the date BEFORE the ex-div date, since it has all the dividends priced in
                 last_div_index = n - 1
             # Used during large majority of the script
-            elif last_div_index != 0:
+            else:
                 div_length = (n - 1) - last_div_index
                 for m in range(div_length):
                     adjust_matrix[last_div_index + 1 + m] = - ((m + 1) / div_length) * last_div
@@ -128,16 +128,17 @@ def get_naked_prices(my_history_price, current_price, num_days_year):
     # Since the current date is one after the last recorded date, we add 1 more
     naked_current_price = current_price - (((num_days_empty + 1) / num_days_quarter) * last_div)
     naked_history[:, 1] = my_history_price[:, 1] + adjust_matrix[:, 0]
-    return naked_history, naked_current_price, last_div_index
+    return naked_history, naked_current_price, last_div_index, div_length
 
 
 ### -------- ###
 
 # This function takes the current naked stock price, the expiry dates of all options and calculates the scaled current
-# price at the expiry date.
+# price at each of the expiry dates.
 
 
-def adjust_prices(expiry_dates_new, naked_current_price, naked_history, api_key, stock_of_interest, last_div_index):
+def adjust_prices(expiry_dates, naked_current_price, naked_history, api_key, stock_of_interest, last_div_index,
+                  last_div_length):
     data_url = 'https://cloud.iexapis.com/stable/stock/' + stock_of_interest + '/dividends/next?token=' \
                + api_key + '&format=csv'
     # Getting the date one day before ex-dividend date
@@ -151,15 +152,19 @@ def adjust_prices(expiry_dates_new, naked_current_price, naked_history, api_key,
         div_price = next_div_data.iloc[0, 4]
         # Gotta subtract one since the max is one day before the next ex-dividend date
         num_days_div = np.busday_count(last_div_date, next_ex_date) - 1
+        assert num_days_div > 0, 'There is probably delay in IEX data, using other method instead.'
     except:
-        next_ex_date_int = naked_history[last_div_index, 0] + int(365 / 4)
+        # Assume that the next dividend payout is of same periodicity as the last
+        next_ex_date_int = naked_history[last_div_index, 0] + last_div_length
         next_ex_date = pd.to_datetime(
             next_ex_date_int, unit='D').asm8.astype('<M8[D]')
+        assert np.busday_count(dt.datetime.date(dt.datetime.now()), next_ex_date) > 0, 'Something fucked up happened.'
+        # Assume that the next dividend payout is the same as the last one
         div_price = naked_history[last_div_index, 2]
         # Don't subtract one since we are adding a quarter onto the day before last ex-dividend date
         num_days_div = np.busday_count(last_div_date, next_ex_date)
-    for n in range(len(expiry_dates_new)):
-        expiry_date = expiry_dates_new[n]
+    for n in range(len(expiry_dates)):
+        expiry_date = expiry_dates[n]
         num_days = np.busday_count(last_div_date, expiry_date) % num_days_div
         if num_days == 0:
             # If expiry date is one day before next ex-dividend date, then price has all dividend priced in
