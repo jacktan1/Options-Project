@@ -30,8 +30,6 @@ final_scores = pd.DataFrame({'Date': [], 'Score': []})
 ### --- Tunable Parameters --- ###
 # Parameters associated with price history weights, base should stay as 1
 base_weight = 1
-# cosine function; 0 means no gain (flat)
-weight_gain = 0
 
 # Date we want to test
 data_path = 'backtest_data'
@@ -44,14 +42,14 @@ price_history_all = my_fun.extract_price_history_v2(stock_of_interest=stock_symb
                                                     api_key=alphaVan_token)
 # Creating weights
 [weights, cumsum_weights, phase_line, freq_line, amp_line] = \
-    my_fun_bt.sine_meshgrid(gain_max=1,
-                            gain_min=1,
-                            freq_max_log=1,
+    my_fun_bt.sine_meshgrid(gain_min=0.5,
+                            gain_max=1,
                             freq_min_log=-3,
+                            freq_max_log=1,
                             price_history=price_history_all,
                             num_days_year=num_days_year,
                             base_weight=base_weight,
-                            gain_density=2,
+                            gain_density=0.5,
                             freq_num=200,
                             phase_density=(np.pi / 16))
 # Matrix to score the cumulative scores
@@ -190,7 +188,7 @@ combo_df_p = pd.DataFrame(data=holder2_p,
 # Making plotly diagram
 fig = px.scatter_3d(combo_df, x='phase', y='frequency', z='count',
                     color='amplitude', opacity=0.8,
-                    color_continuous_scale=px.colors.diverging.Tealrose)
+                    color_continuous_scale=px.colors.sequential.Viridis)
 fig.update_layout(
     title="Best Sets on Option Expiry Dates on Test Dates (Based on Return)"
 )
@@ -198,7 +196,7 @@ fig.show()
 ###
 fig1 = px.scatter_3d(combo_df_p, x='phase', y='frequency', z='count',
                      color='amplitude', opacity=0.8,
-                     color_continuous_scale=px.colors.diverging.Tealrose)
+                     color_continuous_scale=px.colors.sequential.Viridis)
 fig1.update_layout(
     title="Best Sets on Option Expiry Dates on Test Dates (Based on Percent)"
 )

@@ -97,7 +97,7 @@ def price_sorting_bt(option_data, strike_date, stock_symbol):
 
 ### ------ ###
 
-def sine_meshgrid(gain_max, gain_min, freq_max_log, freq_min_log,
+def sine_meshgrid(gain_min, gain_max, freq_min_log, freq_max_log,
                   price_history, num_days_year, base_weight,
                   gain_density, freq_num, phase_density):
     # Creating the ranges for our test parameters
@@ -283,6 +283,6 @@ def find_index(scores, phase_line, freq_line, amp_line):
     freq_value = freq_line[freq_index]
     amp_value = amp_line[amp_index]
     ideal_set = np.array([[phase_value, freq_value, amp_value]])
-    ideal_index = np.array([[phase_index, freq_value, amp_value]])
+    ideal_index = np.array([[phase_index, freq_index, amp_index]])
     return [ideal_set, ideal_index]
 

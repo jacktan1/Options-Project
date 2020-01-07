@@ -285,38 +285,3 @@ def beautify_to_df(best_returns, expiry_dates):
     my_results['Strike Date'] = expiry_dates[date_indices]
     return my_results
 
-
-### -------- ###
-
-
-def user_interaction(best_returns, my_results):
-    finished = False
-    while not finished:
-        print(my_results)
-        my_select = input(
-            'Which option would you like to exercise? (input index number(s) as a consecutive string e.g. 12345)')
-        try:
-            my_select = int(my_select)
-        except:
-            finished = True
-            continue
-        selected_pretty = my_results.loc[my_select]
-        print('You have selected the following option(s):')
-        print(selected_pretty)
-        my_confirm = input(
-            'Are you sure you want to sell these options? (y/n)')
-        if my_confirm == 'y':
-            selected = best_returns[my_select]
-            finished = True
-        elif my_confirm == 'n':
-            my_confirm = input(
-                'Order cancelled. Do you want to reselect(1) or terminate process(2)? (1/2)')
-            if my_confirm == '1':
-                continue
-            elif my_confirm == '2':
-                finished = True
-                continue
-            else:
-                print('Input not understood, taking you back to results.')
-        else:
-            print('Input not understood, taking you back to results.')
