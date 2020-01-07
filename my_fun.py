@@ -190,9 +190,8 @@ def historical_final_price(naked_price_history, current_price, days_till_expiry)
     final_prices = np.zeros(
         (int(len(naked_price_history) - days_till_expiry), 1))
     for n in range(0, len(final_prices)):
-        holder = (naked_price_history[n + days_till_expiry, 1] -
-                  naked_price_history[n, 1]) / naked_price_history[n, 1]
-        final_prices[n] = current_price * (1 + holder)
+        holder = naked_price_history[n + days_till_expiry, 1] / naked_price_history[n, 1]
+        final_prices[n] = current_price * holder
     return final_prices
 
 
@@ -203,7 +202,8 @@ def historical_final_price(naked_price_history, current_price, days_till_expiry)
 
 
 def price_sorting_v2(option_data, strike_date, stock_name):
-    # Returns a matrix with column order: strike price, call bid price, call bid size, call ask price, call ask size
+    # Returns a matrix with column order: strike price,
+    # call bid price, call bid size, call ask price, call ask size,
     # put bid price, put bid size, put ask price, put ask size
     price_holder = np.zeros((len(option_data), 9))
     id_holder = [0] * (2 * len(option_data))

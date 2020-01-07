@@ -56,21 +56,19 @@ def risk_analysis_v4(price_history, sorted_prices, final_prices, current_price, 
                     for aa in range(call_sell_max + 1):
                         num_in_money = 0
                         risk_money_sum = 0
-                        total_call_put = np.atleast_2d(call_return[:, aa] +
-                                                       put_return[:, aa] / (aa + put_sell_max))
+                        total_call_put = (call_return[:, aa] + put_return[:, aa]) / (aa + put_sell_max)
                         ### ----- ###
                         # We will assume the following weight distribution
-                        weights = np.atleast_2d(
-                            (weight_gain / 2) * np.cos((2 * np.pi * np.arange(len(price_history))) / num_days_year) +
-                            (weight_gain / 2) + base_weight)
+                        weights = \
+                            (weight_gain / 2) * np.cos((2 * np.pi * np.arange(len(price_history))) / num_days_year) + \
+                            (weight_gain / 2) + base_weight
                         # Only taking needed section and reversing to match total_call_put
-                        weights = weights[::-1][0:1, :total_call_put.shape[1]]
+                        weights = weights[::-1][:len(total_call_put)]
                         sum_weights = np.sum(weights)
                         # results on first row, weights on second
-                        total_weighted = np.append(
-                            total_call_put, weights, axis=0)
+                        total_weighted = np.vstack((total_call_put, weights))
                         # Counting the total number of weights in money and sum of weighted risk money
-                        for cc in range(0, total_call_put.shape[1]):
+                        for cc in range(0, len(total_call_put)):
                             if total_weighted[0, cc] > 0:
                                 num_in_money += total_weighted[1, cc]
                             else:
@@ -86,8 +84,7 @@ def risk_analysis_v4(price_history, sorted_prices, final_prices, current_price, 
                         # Calculating percent in money
                         percent = (num_in_money / sum_weights) * 100
                         # Calculating total return avg
-                        avg = np.sum(
-                            total_weighted[0, :] * total_weighted[1, :]) / sum_weights
+                        avg = np.sum(total_weighted[0, :] * total_weighted[1, :]) / sum_weights
                         ### ----- ###
                         percent_in_money[aa, n, m] = percent
                         hist_return_avg[aa, n, m] = avg
@@ -113,21 +110,20 @@ def risk_analysis_v4(price_history, sorted_prices, final_prices, current_price, 
                     for aa in range(put_sell_max):
                         num_in_money = 0
                         risk_money_sum = 0
-                        total_call_put = np.atleast_2d(call_return[:, aa] +
-                                                       put_return[:, aa] / (put_sell_max - aa - 1 + call_sell_max))
+                        total_call_put = (call_return[:, aa] + put_return[:, aa]) / \
+                                         (put_sell_max - aa - 1 + call_sell_max)
                         ### ----- ###
                         # We will assume the following weight distribution
-                        weights = np.atleast_2d(
-                            (weight_gain / 2) * np.cos((2 * np.pi * np.arange(len(price_history))) / num_days_year) +
-                            (weight_gain / 2) + base_weight)
+                        weights = \
+                            (weight_gain / 2) * np.cos((2 * np.pi * np.arange(len(price_history))) / num_days_year) + \
+                            (weight_gain / 2) + base_weight
                         # Only taking needed section and reversing to match total_call_put
-                        weights = weights[::-1][0:1, :total_call_put.shape[1]]
+                        weights = weights[::-1][:len(total_call_put)]
                         sum_weights = np.sum(weights)
                         # results on first row, weights on second
-                        total_weighted = np.append(
-                            total_call_put, weights, axis=0)
+                        total_weighted = np.vstack((total_call_put, weights))
                         # Counting the total number of weights in money and sum of weighted risk money
-                        for cc in range(0, total_call_put.shape[1]):
+                        for cc in range(0, len(total_call_put)):
                             if total_weighted[0, cc] > 0:
                                 num_in_money += total_weighted[1, cc]
                             else:
@@ -143,8 +139,7 @@ def risk_analysis_v4(price_history, sorted_prices, final_prices, current_price, 
                         # Calculating percent in money
                         percent = (num_in_money / sum_weights) * 100
                         # Calculating total return avg
-                        avg = np.sum(
-                            total_weighted[0, :] * total_weighted[1, :]) / sum_weights
+                        avg = np.sum(total_weighted[0, :] * total_weighted[1, :]) / sum_weights
                         ### ----- ###
                         percent_in_money[-(aa + 1), n, m] = percent
                         hist_return_avg[-(aa + 1), n, m] = avg

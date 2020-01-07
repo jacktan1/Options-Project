@@ -1,0 +1,8 @@
+cosine (phase, 'freq', amplitude)
+return cumsum error
+min at: [[1.17809725e+00 6.82284110e-04 1.50000000e+00]]
+error: -96591.04
+
+percent cumsum error
+min at: 
+error: 

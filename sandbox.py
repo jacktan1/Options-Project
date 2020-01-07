@@ -6,8 +6,30 @@ import time
 import pandas as pd
 import copy
 from numba import njit, prange, jit
+import my_fun_bt
+import cupy as cp
+import plotly.express as px
 
 ### --- Initialization --- ###
+
+# @guvectorize([void(float64[:], float64[:], float64[:], float64[:])], '(n), (n) -> (n), (n)')
+# def fun(x, y, addition, subtraction):
+#     addition[:] = x + y
+#     subtraction[:] = x - y
+
+day_best = np.array([[1, 2, 3], [2, 3, 3], [1, 4, 0], [1, 2, 3]])
+[asdasd, asdfff] = np.unique(day_best, axis=0, return_counts=True)
+holder = np.zeros((asdasd.shape[0], asdasd.shape[1] + 1))
+holder[:, :day_best.shape[1]] = asdasd
+holder[:, day_best.shape[1]] = asdfff
+df = pd.DataFrame(data=day_best, columns=['phase', 'frequency', 'amplitude'])
+
+
+# fig = px.scatter_3d(df, x='phase', y='frequency', z='petal_width',
+#               color='species')
+# fig.show()
+
+
 q = Questrade()
 finished = False
 stock_of_interest = 'aapl'
@@ -22,9 +44,7 @@ call_sell_max = 10
 put_sell_max = 10
 list_len = 50
 
-
 info = q.markets_quote(stock_Id)
-
 
 ### --- Main Script --- ###
 current_date = my_fun.date_convert(q.time)
@@ -74,7 +94,6 @@ transactions.to_csv('transaction_history.csv', encoding='utf-8', index=True)
 
 @jit(parallel=True, nopython=False)
 def risk_analysis_v4(call_sell_max=2, put_sell_max=2):
-
     sorted_prices = np.zeros((3, 1))
 
     for n in range(call_sell_max + 1):
@@ -92,27 +111,28 @@ def risk_analysis_v4(call_sell_max=2, put_sell_max=2):
         globals()['risk_money' + str(call_sell_max) + str(n)] = \
             np.zeros((len(sorted_prices), len(sorted_prices)))
 
-    return(hist_return_avg_21)
+    return (hist_return_avg_21)
+
 
 a = np.array([5])
 a.all()
 b = c = d = copy.deepcopy(a)
 b += 4
 
-qwe = np.ones((3,1)) * 2
-asd = np.ones((1,3)) * 3
+qwe = np.ones((3, 1)) * 2
+asd = np.ones((1, 3)) * 3
 np.dot(qwe, asd)
 
 qwe.shape[1]
 
 asdasd = np.ones((1, 3)) * 3
 asdasd[0, 1] = 5
-float(np.sum(asdasd, axis = 1))
+float(np.sum(asdasd, axis=1))
 
 asdasd * asdf
 
 asdf = np.ones((1, 3)) * 3
-np.append(asdasd, asdf, axis = 0)
+np.append(asdasd, asdf, axis=0)
 
 np.arange(3).shape
 
@@ -120,10 +140,9 @@ np.array([[]]) == [[]]
 
 aaa[0, :, :]
 aass = np.array([[74, 74, 3], [75, 80, 74], [1, 2, 3]])
-np.append(aass[:,1], aass[:,2], axis = 0)
+np.append(aass[:, 1], aass[:, 2], axis=0)
 
-
-print(aass[:,0])
+print(aass[:, 0])
 asdasd = np.argpartition(aass.flatten(), -9)
 asdasd
 lmao = np.where(aass == asdasd[3])[0][0]
@@ -133,11 +152,12 @@ aass
 np.where(aass == 75)[0][0]
 
 aaa = np.array([[4, 4], [4, 5], [1, 2]])
-np.sum(aaa[:, 0] * aaa[:, 1]) / (4+5+2)
+np.sum(aaa[:, 0] * aaa[:, 1]) / (4 + 5 + 2)
 
-aaa[aaa[:,1] > 700][:,1]
+aaa[aaa[:, 1] > 700][:, 1]
 
 np.arange(1, -1, -1.0)
+
 
 @jit(parallel=False, fastmath=True, nopython=True)
 def fuck_numba():
@@ -147,16 +167,20 @@ def fuck_numba():
     weights = np.atleast_2d(weights[::-1][:10])
     return weights.shape
 
+
 print(fuck_numba())
 
-
 t = time.time()
+
+
 def fun():
-    asdf = np.ones((2,500000))
+    asdf = np.ones((2, 500000))
     for n in range(500000):
         for m in range(2):
             asdf[n, m] = 5
     return asdf
+
+
 print(time.time() - t)
 
 aaa = np.cos((2 * np.pi * np.arange(4)) / 4) + 1
@@ -178,4 +202,4 @@ if (len(total_call_put) - num_in_money) == 0:
     risk_money_avg = 0
 else:
     risk_money_avg = risk_money_sum / \
-        (len(total_call_put) - num_in_money)
+                     (len(total_call_put) - num_in_money)

@@ -30,7 +30,7 @@ list_len = 10
 best_returns_total = np.zeros((1, 9))
 # Parameters associated with price history weights
 base_weight = 1
-weight_gain = 5
+weight_gain = 0.5
 
 ### --- Main Script --- ###
 
@@ -56,9 +56,8 @@ adjusted_current_price = my_fun.adjust_prices(expiry_dates=expiry_dates,
                                               last_div_length=last_div_length)
 print(time.time() - t)
 
-# Should be: range(0, len(all_options_data))
-for n in range(0, len(all_options_data)):
-    strike_date_index = n
+# Should be: range(0, len(expiry_dates))
+for n in range(0, len(expiry_dates)):
     strike_date = expiry_dates[n]
     current_price_at_exp = adjusted_current_price.get(strike_date)
     # COULD ADD EXTRA 1 FOR THE WEEKEND! Or if early in the day / market hasn't opened
@@ -94,7 +93,7 @@ for n in range(0, len(all_options_data)):
                                              historical_return_avg=historical_return_avg,
                                              sorted_prices=sorted_prices,
                                              in_money_thres=in_money_thres,
-                                             strike_date_index=strike_date_index,
+                                             strike_date_index=n,
                                              days_till_expiry=days_till_expiry,
                                              segment_range=segment_range,
                                              list_len=list_len,
