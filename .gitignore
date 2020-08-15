@@ -1,2 +1,4 @@
-backtest_data
+data/backtest_data/
+src/unused/
 __pycache__
+.idea/

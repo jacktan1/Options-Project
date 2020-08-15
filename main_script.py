@@ -8,7 +8,7 @@ import my_fun_2
 ### --- Initialization --- ###
 # Questrade Initialization
 q = Questrade()
-stock_of_interest = 'BP'
+stock_of_interest = 'DAL'
 stock_data = q.symbols_search(prefix=stock_of_interest)
 stock_id = stock_data['symbols'][0]['symbolId']
 # API tokens

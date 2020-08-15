@@ -128,6 +128,7 @@ def get_naked_prices(my_history_price, current_price, num_days_year):
     for n in range(num_days_empty):
         adjust_matrix[last_div_index + n + 1] = -((n + 1) / num_days_quarter) * last_div
     # Since the current date is one after the last recorded date, we add 1 more
+    # Assumes that dividends are quarterly
     naked_current_price = current_price - (((num_days_empty + 1) / num_days_quarter) * last_div)
     naked_history[:, 1] = my_history_price[:, 1] + adjust_matrix[:, 0]
     return naked_history, naked_current_price, last_div_index, div_length
@@ -160,7 +161,10 @@ def adjust_prices(expiry_dates, naked_current_price, naked_history, api_key, sto
         next_ex_date_int = naked_history[last_div_index, 0] + int(last_div_length * (7 / 5))
         next_ex_date = pd.to_datetime(
             next_ex_date_int, unit='D').asm8.astype('<M8[D]')
-        assert np.busday_count(dt.datetime.date(dt.datetime.now()), next_ex_date) > 0, 'Something fucked up happened.'
+
+        # Removing below test since COVID fucked up all dividend schedules
+        # assert np.busday_count(dt.datetime.date(dt.datetime.now()), next_ex_date) > 0, 'Something fucked up happened.'
+
         # Assume that the next dividend payout is the same as the last one
         # Add 1 since our index is one day before the ex-div (which contains the amount)
         div_price = naked_history[last_div_index + 1, 2]
