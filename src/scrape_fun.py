@@ -1,13 +1,8 @@
 import numpy as np
-import datetime as dt
-import re
 import pandas as pd
 from questrade_api import Questrade
 import sys
-from numba import jit
 from pathlib import Path
-
-q = Questrade()
 
 
 def get_current_price(stock_of_interest, api_key):
@@ -17,9 +12,10 @@ def get_current_price(stock_of_interest, api_key):
     prices are less accurate and do not track pre and post market.
 
     :param stock_of_interest: ticker symbol (string)
-    :param api_key: API key used to access the Alphavantage server
-    :return: current price of the stock is returned as a double
+    :param api_key: API key used to access the Alphavantage server (string)
+    :return: current price of the stock (float)
     """
+    q = Questrade()
 
     try:
         stock_id = q.symbols_search(prefix=stock_of_interest)['symbols'][0]['symbolId']
@@ -29,8 +25,8 @@ def get_current_price(stock_of_interest, api_key):
     except:
         print("Could not retrieve price from Questrade API, attempting Alphavantage instead!")
         try:
-            price = float(pd.read_csv('https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=' +
-                                      stock_of_interest + '&apikey=' + api_key + '&datatype=csv')['price'])
+            price = float(pd.read_json("https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=" +
+                                       stock_of_interest + '&apikey=' + api_key).loc["05. price"])
         except:
             print('Could not retrieve price from Alphavantage. Please ensure ticker symbol exists!')
             sys.exit(1)
@@ -40,11 +36,12 @@ def get_current_price(stock_of_interest, api_key):
 def retrieve_price_history(stock_of_interest, api_key):
     """
     Retrieves daily closing price of a given ticker from the Alphavantage API.
+    Adjusts ticker price and dividend payout accordingly to forward/reverse splits.
     Checks and appends the prices to local version of ticker history is present.
 
     :param stock_of_interest: ticker symbol (string)
-    :param api_key: API key used to access the Alphavantage server
-    :return: daily closing price of stock ticker as a .csv
+    :param api_key: API key used to access the Alphavantage server (string)
+    :return:
     """
 
     # Default parameters
@@ -69,13 +66,14 @@ def retrieve_price_history(stock_of_interest, api_key):
             if temp_multiplier != 1:
                 split_multiplier = split_multiplier * temp_multiplier
         # Update DataFrame
-        my_history[n] = [history_data.iloc[n, 0].strftime("%Y-%m-%d"),
+        my_history[n] = [history_data.iloc[n, 0],
                          round((float(history_data.iloc[n, 1]['4. close']) / split_multiplier), 3),
-                         float(history_data.iloc[n, 1]['7. dividend amount'])]
+                         round((float(history_data.iloc[n, 1]['7. dividend amount']) / split_multiplier), 3)]
     # Reverse list such that the oldest price is first
     my_history = my_history[::-1]
-    # Removes the last element, since that is the current price, not history
-    my_history = my_history[:-1, :]
+    # Removes the last row if that is the current date
+    if my_history[-1, 0].date() == pd.to_datetime("today").date():
+        my_history = my_history[:-1, :]
 
     # Convert to DataFrame and store
     my_history_df = pd.DataFrame(data=my_history,
@@ -86,7 +84,11 @@ def retrieve_price_history(stock_of_interest, api_key):
 
     try:
         old_data = pd.read_csv(default_path + stock_of_interest + '.csv')
-        my_history_df = pd.concat([old_data, my_history_df], ignore_index=True).drop_duplicates()
+        old_data['date'] = pd.to_datetime(old_data['date'])
+        # Sometimes there are rounding errors when using "read_csv"
+        old_data['close'] = round(old_data['close'], 3)
+        old_data['dividend amount'] = round(old_data['dividend amount'], 3)
+        my_history_df = pd.concat([old_data, my_history_df], ignore_index=True).drop_duplicates().reset_index(drop=True)
         if len(my_history_df['date']) != len(set(my_history_df['date'])):
             print(my_history_df)
             raise Exception("There are discrepancies in price between old and new files. Local version not updated!")
@@ -98,4 +100,4 @@ def retrieve_price_history(stock_of_interest, api_key):
         my_history_df.to_csv(path_or_buf=(default_path + stock_of_interest + '.csv'),
                              index=False)
 
-    return my_history_df
+    return
