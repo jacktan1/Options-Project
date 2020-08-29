@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def dividend_pricing(num_days, amount, completeness):
+def dividend_pricing(num_days, amount, completeness, position):
     """
     Function is used to calculate "priced in" dividends in
     daily historical prices. As no strict model is established
@@ -11,6 +11,7 @@ def dividend_pricing(num_days, amount, completeness):
     :param num_days: the number of days in this dividend period (int)
     :param amount: amount paid for this dividend period (float)
     :param completeness: what ratio of the dividend amount is covered (float)
+    :param position: where does this dividend lie (str)
     :return: numpy series containing all dividend controbutions for time period
     """
     max_div = amount * completeness
@@ -21,6 +22,10 @@ def dividend_pricing(num_days, amount, completeness):
         dividend_df = np.arange(start=float(max_div / num_days),
                                 stop=float(max_div + (max_div / num_days) * 0.1),
                                 step=float(max_div / num_days))
+
+    if position == "head":
+        dividend_df = amount - dividend_df + float(max_div / num_days)
+        dividend_df = dividend_df[::-1]
 
     return dividend_df
 

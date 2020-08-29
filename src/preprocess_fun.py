@@ -26,16 +26,18 @@ def extract_dividends(my_history, stock_of_interest, api_key, num_days_year):
     company_info = pd.read_json(data_url + stock_of_interest + "&apikey=" + api_key,
                                 typ="series")
     alpha_next_div_date = datetime.strptime(company_info["ExDividendDate"], '%Y-%m-%d')
+    # Current annualized dividend payout
     annual_div_amount = float(company_info["ForwardAnnualDividendRate"])
     if annual_div_amount == "None":
         annual_div_amount = 0
 
+    # Creating DataFrame of all past dividends
     for n in range(my_history.shape[0]):
         if my_history['dividend amount'][n] != 0:
             temp_df = my_history.iloc[n, :].copy(deep=True)
             div_info = div_info.append(temp_df, ignore_index=True)
 
-    # See if ticker pays dividends & reshape matrix if it does
+    # Reshape matrix if stock does pay dividends
     try:
         div_info = div_info[['date', 'dividend amount']]
         div_info['div_start'] = div_info['date']
@@ -43,33 +45,41 @@ def extract_dividends(my_history, stock_of_interest, api_key, num_days_year):
         div_info = div_info.drop(['date'], axis=1)
         div_info = div_info[['div_start', 'div_end', 'dividend amount']]
     except:
-        print("Ticker " + stock_of_interest + " does not pay dividends and it never has!")
         if (alpha_next_div_date.date() < pd.to_datetime("today").date()) & (annual_div_amount > 0):
             raise Exception("No dividend history but yet Alphavantage indicates Ex-Div date has passed?!")
 
-    if div_info.shape[0] == 1:
-        if (alpha_next_div_date.date() >= pd.to_datetime("today").date()) & (annual_div_amount > 0):
-            div_multiplier = model_fun.div_freq(exdiv_date_1=div_info['date'].iloc[-1],
-                                                exdiv_date_2=alpha_next_div_date,
-                                                num_days_year=num_days_year)
-            # Forward
-            div_info = div_info.append(
-                pd.DataFrame([[alpha_next_div_date, np.nan, annual_div_amount * div_multiplier]],
-                             columns=div_info.columns.tolist()),
-                ignore_index=True)
+    # Calculating the next dividend date
+    # Case 1: next dividend date is announced and hasn't passed yet
+    if (alpha_next_div_date.date() > my_history['date'].iloc[-1].date()) & (annual_div_amount > 0):
+        div_multiplier = model_fun.div_freq(ex_div_1=div_info['div_start'].iloc[-1],
+                                            ex_div_2=alpha_next_div_date,
+                                            num_days_year=num_days_year)
 
-            assumed_start_date = np.busday_offset(dates=div_info['div_start'].iloc[0].date(),
-                                                  offsets=-np.busday_count(
-                                                      begindates=div_info['div_start'].iloc[0].date(),
-                                                      enddates=div_info['div_start'].iloc[1].date()))
-            # Backward
-            div_info = pd.DataFrame([[assumed_start_date, np.nan, 0]],
-                                    columns=div_info.columns.tolist()).append(div_info, ignore_index=True)
-        else:
-            print("Only one ex-dividend date recorded and next date not in sight. Effect of dividend not calculated!")
-            # Reset DataFrame to be as if no dividend recorded
-            div_info = pd.DataFrame()
+        div_info = div_info.append(
+            pd.DataFrame([[alpha_next_div_date, np.nan, annual_div_amount * div_multiplier]],
+                         columns=div_info.columns.tolist()),
+            ignore_index=True)
+    # Case 2: estimate the next dividend date based off history
     elif div_info.shape[0] > 1:
+        assumed_end_date = np.busday_offset(dates=div_info['div_start'].iloc[-1].date(),
+                                            offsets=np.busday_count(
+                                                begindates=div_info['div_start'].iloc[-2].date(),
+                                                enddates=div_info['div_start'].iloc[-1].date()))
+
+        div_info = div_info.append(pd.DataFrame([[assumed_end_date, np.nan, div_info['dividend amount'].iloc[-1]]],
+                                                columns=div_info.columns.tolist()),
+                                   ignore_index=True)
+    # Case 3: when there isn't anything to base estimate on
+    elif div_info.shape[0] == 1:
+        print("Only one ex-dividend date recorded and next date not in sight. Effect of dividend not calculated!")
+        # Reset DataFrame to be as if no dividend recorded
+        div_info = pd.DataFrame()
+    # Case 4: company has never paid dividends
+    else:
+        print("Ticker " + stock_of_interest + " does not pay dividends and it never has!")
+
+    # Estimating the start date
+    if div_info.shape[0] > 1:
         assumed_start_date = np.busday_offset(dates=div_info['div_start'].iloc[0].date(),
                                               offsets=-np.busday_count(
                                                   begindates=div_info['div_start'].iloc[0].date(),
@@ -77,28 +87,6 @@ def extract_dividends(my_history, stock_of_interest, api_key, num_days_year):
         # Backward
         div_info = pd.DataFrame([[assumed_start_date, np.nan, 0]],
                                 columns=div_info.columns.tolist()).append(div_info, ignore_index=True)
-
-        # Forward
-        # If listed ex-dividend date has already passed
-        if alpha_next_div_date.date() < pd.to_datetime("today").date():
-            assumed_end_date = np.busday_offset(dates=div_info['div_start'].iloc[-1].date(),
-                                                offsets=np.busday_count(
-                                                    begindates=div_info['div_start'].iloc[-2].date(),
-                                                    enddates=div_info['div_start'].iloc[-1].date()))
-
-            div_info = div_info.append(pd.DataFrame([[assumed_end_date, np.nan, div_info['dividend amount'].iloc[-1]]],
-                                                    columns=div_info.columns.tolist()),
-                                       ignore_index=True)
-        # If dividend date hasn't passed yet
-        else:
-            div_multiplier = model_fun.div_freq(ex_div_1=div_info['div_start'].iloc[-1],
-                                                ex_div_2=alpha_next_div_date,
-                                                num_days_year=num_days_year)
-
-            div_info = div_info.append(
-                pd.DataFrame([[alpha_next_div_date, np.nan, annual_div_amount * div_multiplier]],
-                             columns=div_info.columns.tolist()),
-                ignore_index=True)
 
     # Rudimentary method of finding dividend end dates. Works in most cases unless there
     # is a gap/break between dividends. For example, dividend paid for Q1 and Q3 but not Q2.
@@ -111,16 +99,17 @@ def extract_dividends(my_history, stock_of_interest, api_key, num_days_year):
     # Convert np.datetime64 to datetime
     div_info['div_end'] = pd.to_datetime(div_info['div_end'])
 
+    # Stocks with dividend history
     if div_info.shape[0] > 1:
         # Readjusting the dividend amount since it is shifted down 1 row by default
         div_info['dividend amount'] = div_info['dividend amount'].iloc[1:].reset_index(drop=True)
         div_info = div_info.iloc[:-1, ]
+    # When no dividend has been recorded (empty div_info)
     else:
-        # Cases when no dividend has been recorded
         div_info = pd.DataFrame(data=[[my_history['date'].iloc[0], my_history['date'].iloc[-1], 0]],
                                 columns=['div_start', 'div_end', 'dividend amount'])
 
-    # Initializes the adjustment matrix
+    # Initializes the adjustment matrix for days before dividends existed
     if div_info['div_start'].iloc[0] > my_history['date'].iloc[0]:
         start_index = my_history.loc[my_history['date'] == div_info['div_start'][0]].index.values.astype(int)[0]
         adjust_df = adjust_df.append(pd.DataFrame(my_history['date'].iloc[:start_index],
@@ -129,64 +118,68 @@ def extract_dividends(my_history, stock_of_interest, api_key, num_days_year):
 
     # Appends adjustment matrix for each dividend period by their respective dividend contributions
     for n in range(div_info.shape[0]):
-        # When first dividend start date is before first day of recorded history
+        # Case 1: first dividend start date is before first day on record
         if div_info['div_start'].iloc[n] < my_history['date'].iloc[0]:
-            start_index = 0
-            try:
-                end_index = my_history.loc[my_history['date'] == div_info['div_end'].iloc[n]] \
-                    .index.values.astype(int)[0]
-            except:
-                print("The market was not open on the business day before ex Dividend date! Using business day prior to"
-                      " this")
-                temp_date = np.busday_offset(dates=div_info['div_end'].iloc[n].date(),
-                                             offsets=-1)
-                end_index = my_history.loc[my_history['date'] == temp_date] \
-                    .index.values.astype(int)[0]
-
-            # Very important to add 1!
-            ratio = (end_index - start_index + 1) / (np.busday_count(begindates=div_info['div_start'][n].date(),
-                                                                     enddates=div_info['div_end'][n].date()) + 1)
-            div_amount = div_info['dividend amount'].iloc[n]
-        # When last dividend end date is past last day of recorded history
-        elif div_info['div_end'].iloc[n] > my_history['date'].iloc[-1]:
-            start_index = my_history.loc[my_history['date'] == div_info['div_start'].iloc[n]] \
-                .index.values.astype(int)[0]
-            end_index = my_history.shape[0] - 1
-            # Very important to add 1!
-            ratio = (end_index - start_index + 1) / (np.busday_count(begindates=div_info['div_start'][n].date(),
-                                                                     enddates=div_info['div_end'][n].date()) + 1)
-            div_amount = div_info['dividend amount'].iloc[n]
+            start_date = my_history['date'].iloc[0]
+            end_date = div_info['div_end'].iloc[n]
+            ratio = 0
+            position = "head"
+        # Case 2: last dividend end date is on/past today
+        # NOTE that because we use the CURRENT DATE we need the MOST UP TO DATE data history file as well.
+        # Thus this function should not run by itself!
+        elif div_info['div_end'].iloc[n].date() > pd.to_datetime("today").date():
+            start_date = div_info['div_start'].iloc[n]
+            end_date = datetime.combine(pd.to_datetime("today").date(), datetime.min.time())
+            ratio = 0
+            position = "tail"
+        # Case 3: most common, everything in the middle
         else:
-            start_index = my_history.loc[my_history['date'] == div_info['div_start'].iloc[n]] \
-                .index.values.astype(int)[0]
+            start_date = div_info['div_start'].iloc[n]
+            end_date = div_info['div_end'].iloc[n]
             ratio = 1
-            div_amount = div_info['dividend amount'].iloc[n]
-            try:
-                end_index = my_history.loc[my_history['date'] == div_info['div_end'].iloc[n]] \
-                    .index.values.astype(int)[0]
-            except:
-                print("The market was not open on the business day before ex Dividend date! Using business day prior to"
-                      " this")
-                temp_date = np.busday_offset(dates=div_info['div_end'].iloc[n].date(),
-                                             offsets=-1)
-                end_index = my_history.loc[my_history['date'] == temp_date] \
-                    .index.values.astype(int)[0]
+            position = "middle"
+
+        start_index = my_history.loc[my_history['date'] == start_date].index.values.astype(int)[0]
+
+        try:
+            end_index = my_history.loc[my_history['date'] == end_date].index.values.astype(int)[0]
+        except:
+            if end_date.date() == pd.to_datetime("today").date():
+                # Today should be 1 day after the most recent recorded history
+                end_index = my_history.shape[0]
+            else:
+                print("The market was not open on " + str(end_date.date()) + "!  Using business day prior to this!")
+                temp_date = np.busday_offset(dates=end_date.date(), offsets=-1)
+                end_index = my_history.loc[my_history['date'] == temp_date].index.values.astype(int)[0]
+
+        # Find the ratio of the entire dividend period that is covered
+        if ratio == 0:
+            # Very important to add 1!
+            ratio = (end_index - start_index + 1) / (np.busday_count(div_info['div_start'][n].date(),
+                                                                     div_info['div_end'][n].date()) + 1)
+            if ratio >= 1:
+                raise Exception("More days have passed than there exists between the two start and end dates!")
+
+        div_amount = div_info['dividend amount'].iloc[n]
 
         temp_df = model_fun.dividend_pricing(num_days=(end_index - start_index + 1),
                                              amount=div_amount,
-                                             completeness=ratio)
+                                             completeness=ratio,
+                                             position=position)
         temp_df = pd.DataFrame(temp_df, columns=['amount'])
         temp_df['date'] = 0
         adjust_df = adjust_df.append(temp_df, sort=False).reset_index(drop=True)
 
-    # When the last "div_end" comes before the last day in price history
-    if adjust_df.shape[0] < my_history.shape[0]:
-        temp_df = pd.DataFrame(data=np.zeros((my_history.shape[0] - adjust_df.shape[0], 2)),
+    # When the last "div_end" comes before the last day on record (aka company stopped paying dividends a year ago)
+    if adjust_df.shape[0] <= my_history.shape[0]:
+        # adding the extra "1" for "today"
+        temp_df = pd.DataFrame(data=np.zeros((my_history.shape[0] - adjust_df.shape[0] + 1, 2)),
                                columns=['date', 'amount'])
         adjust_df = adjust_df.append(temp_df, sort=False).reset_index(drop=True)
 
     # Filling the "date" column
     adjust_df['date'] = my_history['date']
+    adjust_df['date'].iloc[-1] = datetime.combine(pd.to_datetime("today").date(), datetime.min.time())
 
     # Saving DataFrame into csv
     # Create data directory if it doesn't exist
@@ -198,4 +191,5 @@ def extract_dividends(my_history, stock_of_interest, api_key, num_days_year):
     div_info.to_csv(path_or_buf=(default_path + stock_of_interest + '.csv'),
                     index=False)
 
+    print("Done!")
     return

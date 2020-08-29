@@ -13,7 +13,7 @@ def get_current_price(stock_of_interest, api_key):
 
     :param stock_of_interest: ticker symbol (string)
     :param api_key: API key used to access the Alphavantage server (string)
-    :return: current price of the stock (float)
+    :return: current price of the ticker (float)
     """
     q = Questrade()
 
@@ -41,7 +41,7 @@ def retrieve_price_history(stock_of_interest, api_key):
 
     :param stock_of_interest: ticker symbol (string)
     :param api_key: API key used to access the Alphavantage server (string)
-    :return:
+    :return: adjusted daily closing price and dividend payouts of the ticker (DataFrame)
     """
 
     # Default parameters
@@ -90,7 +90,8 @@ def retrieve_price_history(stock_of_interest, api_key):
         old_data['dividend amount'] = round(old_data['dividend amount'], 3)
         my_history_df = pd.concat([old_data, my_history_df], ignore_index=True).drop_duplicates().reset_index(drop=True)
         if len(my_history_df['date']) != len(set(my_history_df['date'])):
-            print(my_history_df)
+            # Discrepancies are appended to the end of the concatenation
+            print(my_history_df.tail())
             raise Exception("There are discrepancies in price between old and new files. Local version not updated!")
         else:
             my_history_df.to_csv(path_or_buf=(default_path + stock_of_interest + '.csv'),
@@ -100,4 +101,4 @@ def retrieve_price_history(stock_of_interest, api_key):
         my_history_df.to_csv(path_or_buf=(default_path + stock_of_interest + '.csv'),
                              index=False)
 
-    return
+    return my_history_df
