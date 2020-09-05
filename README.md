@@ -8,15 +8,15 @@ This package is currently only concerned with the selling of options. In other w
 
 ## Folders
 - **data**:
-  - *daily_closing*: Daily closing prices of various stock tickers obtained from Alpha Vantage. A local history is kept as Alpha Vantage sometimes remove older data to keep histories under a certain length, and we want to be able to train our models on the same data.
+  - *daily_closing*: Daily closing prices of various stock tickers obtained from Alpha Vantage. To ensure training data remains constant, a local split-adjusted history is kept.
   
   - *dividends*: For each ticker symbol, two files are created.
-      - "ticker.csv" contains the start and end dates of each dividend period, as well as amount paid. Please note that "div_start" is simply the ex-dividend date for the previous dividend.
-      - "ticker_ts.csv" contains the contribution to stock price due to dividends in a time series format. For each day in stock history, a dividend contribution is calculated.
+      - "ticker.csv" contains the start and end dates of each dividend period, as well as amount paid. Note that "div_start" is the ex-dividend date for the previous dividend.
+      - "ticker_ts.csv" contains the contribution to price due to dividends in a time series format. For each day on record, a dividend contribution is calculated.
       
-  - *questrade_data*: Data obtained from the Questrade API. Files are snapshots of option data of a ticker symbol for a given day and time. Therefore, recorded prices may not represent "end of day" prices as snapshots are taken upon execution of scraping script.
+  - *questrade_data*: Data obtained from the Questrade API. Files are snapshots of option data of a ticker symbol for a given day and time. Recorded prices may not represent "end of day" prices as snapshots are taken upon execution of scraping script.
   
-  - *backtest_data*: Data obtained from Discount Option Data and used for backtesting of model. Prices are end of day as indicated on their website.
+  - *backtest_data*: Option prices obtained from Discount Option Data and used for backtesting of model. Prices are end of day as indicated on their website.
 
 
 - **results**: This folder contains analyzed performance of different call and put option pairs for a given ticker on a given date.
