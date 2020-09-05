@@ -1,25 +1,23 @@
 import numpy as np
 import pandas as pd
-from questrade_api import Questrade
 import sys
 from pathlib import Path
 
 
-def get_current_price(stock_of_interest, api_key):
+def get_current_price(stock_of_interest, questrade_instance, api_key):
     """
     Retrieves the current price of a stock using the questrade_api package.
     If questrade server is down, Alphavantage is used as backup. Note that Alphavantage
     prices are less accurate and do not track pre and post market.
 
     :param stock_of_interest: ticker symbol (string)
+    :param questrade_instance: Questrade instance from 'questrade_api'
     :param api_key: API key used to access the Alphavantage server (string)
     :return: current price of the ticker (float)
     """
-    q = Questrade()
-
     try:
-        stock_id = q.symbols_search(prefix=stock_of_interest)['symbols'][0]['symbolId']
-        price = q.markets_quote(stock_id)['quotes'][0]['lastTradePrice']
+        stock_id = questrade_instance.symbols_search(prefix=stock_of_interest)['symbols'][0]['symbolId']
+        price = questrade_instance.markets_quote(stock_id)['quotes'][0]['lastTradePrice']
         if price is None:
             raise Exception
     except:
