@@ -92,7 +92,8 @@ def retrieve_price_history(stock_of_interest, api_key):
         if len(my_history_df['date']) != len(set(my_history_df['date'])):
             # Discrepancies are appended to the end of the concatenation
             print(my_history_df.tail())
-            raise Exception("There are discrepancies in price between old and new files. Local version not updated!")
+            raise Exception("Discrepancies between old and new files. This could be due to forward/reverse splits."
+                            "Data not updated, please manually fix!")
         else:
             my_history_df.to_csv(path_or_buf=(default_path + stock_of_interest + '.csv'),
                                  index=False)
