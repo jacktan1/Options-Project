@@ -25,7 +25,12 @@ def extract_dividends(my_history, stock_of_interest, api_key, num_days_year):
     default_path = "data/dividends/"
     company_info = pd.read_json(data_url + stock_of_interest + "&apikey=" + api_key,
                                 typ="series")
-    alpha_next_div_date = datetime.strptime(company_info["ExDividendDate"], '%Y-%m-%d')
+    alpha_next_div_date = company_info["ExDividendDate"]
+    # Check next dividend date, fill with nonsense otherwise
+    if alpha_next_div_date != "None":
+        alpha_next_div_date = datetime.strptime(alpha_next_div_date, '%Y-%m-%d')
+    else:
+        alpha_next_div_date = my_history['date'].iloc[0]
     # Current annualized dividend payout
     annual_div_amount = float(company_info["ForwardAnnualDividendRate"])
     if annual_div_amount == "None":
@@ -45,7 +50,7 @@ def extract_dividends(my_history, stock_of_interest, api_key, num_days_year):
         div_info = div_info[['div_start', 'dividend amount']]
     except:
         if (alpha_next_div_date.date() < pd.to_datetime("today").date()) & (annual_div_amount > 0):
-            raise Exception("No dividend history but yet Alphavantage indicates Ex-Div date has passed?!")
+            raise Exception("No dividend payout but yet Alphavantage indicates Ex-Div date has passed?!")
 
     # Calculating the next upcoming dividend date
     # Case 1: next dividend date is announced and hasn't passed yet
@@ -94,10 +99,12 @@ def extract_dividends(my_history, stock_of_interest, api_key, num_days_year):
         temp_end_dates[n] = np.busday_offset(dates=div_info['div_start'].iloc[n + 1].date(),
                                              offsets=-1)
 
-    # Convert np.datetime64 to datetime and insert into div_info
-    div_info['div_end'] = pd.to_datetime(temp_end_dates)
-    # Rearrange column order
-    div_info = div_info[['div_start', 'div_end', 'dividend amount']]
+    #  Convert np.datetime64 to datetime & rearrange column order (if applicable)
+    try:
+        div_info['div_end'] = pd.to_datetime(temp_end_dates)
+        div_info = div_info[['div_start', 'div_end', 'dividend amount']]
+    except:
+        pass
 
     # Stocks with dividend history
     if div_info.shape[0] > 1:
