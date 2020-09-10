@@ -14,9 +14,9 @@ This package is currently only concerned with the selling of options. In other w
       - "ticker.csv" contains the start and end dates of each dividend period, as well as amount paid. Note that "div_start" is the ex-dividend date for the previous dividend.
       - "ticker_ts.csv" contains the contribution to total price due to dividends as a time series. For each day on record, a dividend contribution is calculated.
       
-  - *questrade_data*: Option data scraped from the Questrade API. Recorded prices may not represent "end of day" prices as snapshots are taken upon execution of scraping script.
+  - *questrade_data*: Unadjusted option data scraped from Questrade API. Recorded prices may not represent "end of day" prices as snapshots are taken upon execution of scraping script.
   
-  - *adjusted_options*: Historical option data obtained from Discount Option Data and used for training of model. Prices are end of day as indicated on their website.
+  - *adjusted_options*: Adjusted historical option data obtained from Discount Option Data and used for training of model. Prices are end of day as indicated on their website.
 
 
 - **results**: This folder contains analyzed performance of different call and put option pairs for a given ticker on a given date.
