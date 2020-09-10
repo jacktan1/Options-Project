@@ -8,15 +8,15 @@ This package is currently only concerned with the selling of options. In other w
 
 ## Folders
 - **data**:
-  - *daily_closing*: Daily closing prices of various stock tickers obtained from Alpha Vantage. To ensure training data remains constant, a local split-adjusted history is kept.
+  - *adjusted_daily_closing*: Daily closing prices of various stock tickers obtained from Alpha Vantage adjusted for forward/reverse splits. To ensure training data remains constant, a local history is kept.
   
-  - *dividends*: For each ticker symbol, two files are created.
+  - *dividends*: For each ticker symbol in local history, two files can be created.
       - "ticker.csv" contains the start and end dates of each dividend period, as well as amount paid. Note that "div_start" is the ex-dividend date for the previous dividend.
-      - "ticker_ts.csv" contains the contribution to price due to dividends in a time series format. For each day on record, a dividend contribution is calculated.
+      - "ticker_ts.csv" contains the contribution to total price due to dividends as a time series. For each day on record, a dividend contribution is calculated.
       
-  - *questrade_data*: Data obtained from the Questrade API. Files are snapshots of option data of a ticker symbol for a given day and time. Recorded prices may not represent "end of day" prices as snapshots are taken upon execution of scraping script.
+  - *questrade_data*: Option data scraped from the Questrade API. Recorded prices may not represent "end of day" prices as snapshots are taken upon execution of scraping script.
   
-  - *backtest_data*: Option prices obtained from Discount Option Data and used for backtesting of model. Prices are end of day as indicated on their website.
+  - *adjusted_options*: Historical option data obtained from Discount Option Data and used for training of model. Prices are end of day as indicated on their website.
 
 
 - **results**: This folder contains analyzed performance of different call and put option pairs for a given ticker on a given date.
@@ -29,3 +29,4 @@ This package is currently only concerned with the selling of options. In other w
   - plotly
   - numba
   - questrade_api
+  - tqdm
