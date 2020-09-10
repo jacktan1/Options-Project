@@ -113,6 +113,7 @@ def hist_option_data(stock_of_interest, stock_data_path, option_data_path, save_
     Adjustment is made based on historical splits. For example, had a stock undergone
     a forward split of factor 2, all previous strike price, ask/bid price ...etc are
     divided by 2. On the flip side, ask/bid size, volume ...etc are multiplied by 2.
+    Function has to be modified depending on structure of options data.
 
     :param stock_of_interest: ticker symbol (string)
     :param stock_data_path: path where daily closing stock prices are saved (string)
@@ -128,14 +129,14 @@ def hist_option_data(stock_of_interest, stock_data_path, option_data_path, save_
         raise SystemExit("Stock history for " + stock_of_interest + " not found! Unable to determine stock splits!")
 
     # Nested loading of options data
-    my_seasons = [season for season in os.listdir(option_data_path) if not season.startswith(".")]
-    for season in tqdm(my_seasons):
-        my_months = [month for month in os.listdir(os.path.join(option_data_path, season)) if not month.startswith(".")]
-        for month in tqdm(my_months):
-            my_days = [day for day in os.listdir(os.path.join(option_data_path, season, month)) if
+    my_years = [year for year in os.listdir(option_data_path) if not year.startswith(".")]
+    for year in tqdm(my_years, desc="year"):
+        my_months = [month for month in os.listdir(os.path.join(option_data_path, year)) if not month.startswith(".")]
+        for month in tqdm(my_months, desc="month"):
+            my_days = [day for day in os.listdir(os.path.join(option_data_path, year, month)) if
                        not day.startswith(".")]
-            for day in tqdm(my_days):
-                daily_option_data = pd.read_csv(os.path.abspath(os.path.join(option_data_path, season, month, day)))
+            for day in tqdm(my_days, desc="day"):
+                daily_option_data = pd.read_csv(os.path.abspath(os.path.join(option_data_path, year, month, day)))
                 # Filtering for the right symbol
                 temp_data = daily_option_data[daily_option_data["Symbol"] == stock_of_interest]
                 # Dropping columns are reordering others
