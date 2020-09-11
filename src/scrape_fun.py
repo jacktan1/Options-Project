@@ -107,7 +107,7 @@ def retrieve_price_history(stock_of_interest, api_key, save_path):
     return my_history_df
 
 
-def hist_option_data(stock_of_interest, stock_data_path, option_data_path, save_path):
+def hist_option_data(stock_of_interest, stock_data_path, option_data_path, save_path, error_thresh):
     """
     This function aims to aggregate and adjust all option data for a given ticker.
     Adjustment is made based on historical splits. For example, had a stock undergone
@@ -119,9 +119,10 @@ def hist_option_data(stock_of_interest, stock_data_path, option_data_path, save_
     :param stock_data_path: path where daily closing stock prices are saved (string)
     :param option_data_path: path where all the option data files are stored (string)
     :param save_path: path to save aggregated options data (string)
+    :param error_thresh: margin of error allowed between Alphavantage and Discount Option Data (float)
     :return: none
     """
-    my_option_data = pd.DataFrame()
+    my_options_data = pd.DataFrame()
     try:
         my_history_df = pd.read_csv(os.path.abspath(os.path.join(stock_data_path, stock_of_interest)) + ".csv")
         my_history_df["date"] = pd.to_datetime(my_history_df["date"])
@@ -156,25 +157,33 @@ def hist_option_data(stock_of_interest, stock_data_path, option_data_path, save_
                     temp_data[["AskSize", "BidSize", "Volume", "openinterest"]] * temp_adjustment_factor
 
                 # Append to DataFrame
-                my_option_data = my_option_data.append(temp_data).reset_index(drop=True)
+                my_options_data = my_options_data.append(temp_data).reset_index(drop=True)
 
     # Renaming columns
-    my_option_data = my_option_data.rename(columns={"DataDate": "date",
-                                                    "ExpirationDate": "expiration date",
-                                                    "PutCall": "type",
-                                                    "StrikePrice": "strike price",
-                                                    "AskPrice": "ask price",
-                                                    "AskSize": "ask size",
-                                                    "BidPrice": "bid price",
-                                                    "BidSize": "bid size",
-                                                    "LastPrice": "last price",
-                                                    "openinterest": "open interest",
-                                                    "UnderlyingPrice": "underlying price",
-                                                    "Volume": "volume"})
-    my_option_data = my_option_data.sort_values(by=["date", "expiration date", "strike price"]).reset_index(drop=True)
+    my_options_data = my_options_data.rename(columns={"DataDate": "date",
+                                                      "ExpirationDate": "expiration date",
+                                                      "PutCall": "type",
+                                                      "StrikePrice": "strike price",
+                                                      "AskPrice": "ask price",
+                                                      "AskSize": "ask size",
+                                                      "BidPrice": "bid price",
+                                                      "BidSize": "bid size",
+                                                      "LastPrice": "last price",
+                                                      "openinterest": "open interest",
+                                                      "UnderlyingPrice": "underlying price",
+                                                      "Volume": "volume"})
+    my_options_data = my_options_data.sort_values(by=["date", "expiration date", "strike price"]).reset_index(drop=True)
+
+    # Check data sources concur
+    for my_date in set(my_options_data["date"]):
+        alpha_price = float(my_history_df[my_history_df["date"] == my_date]["close"])
+        # noinspection PyTypeChecker
+        if any(np.abs(
+                my_options_data[my_options_data["date"] == my_date]["underlying price"] - alpha_price) > error_thresh):
+            raise SystemExit("Closing price in option data not consistent with locally stored version!")
 
     Path(save_path).mkdir(exist_ok=True)
-    my_option_data.to_csv(path_or_buf=(os.path.abspath(os.path.join(save_path, stock_of_interest)) + ".csv"),
-                          index=False)
+    my_options_data.to_csv(path_or_buf=(os.path.abspath(os.path.join(save_path, stock_of_interest)) + ".csv"),
+                           index=False)
     print("All available option data for " + stock_of_interest + " has been aggregated and saved!")
     return
