@@ -107,7 +107,7 @@ def retrieve_price_history(stock_of_interest, api_key, save_path):
     return my_history_df
 
 
-def hist_option_data(stock_of_interest, stock_data_path, option_data_path, save_path, error_thresh):
+def hist_option_data(stock_of_interest, stock_data_path, option_data_path, error_thresh):
     """
     This function aims to aggregate and adjust all option data for a given ticker.
     Adjustment is made based on historical splits. For example, had a stock undergone
@@ -118,16 +118,16 @@ def hist_option_data(stock_of_interest, stock_data_path, option_data_path, save_
     :param stock_of_interest: ticker symbol (string)
     :param stock_data_path: path where daily closing stock prices are saved (string)
     :param option_data_path: path where all the option data files are stored (string)
-    :param save_path: path to save aggregated options data (string)
     :param error_thresh: margin of error allowed between Alphavantage and Discount Option Data (float)
-    :return: none
+    :return: my_options_data: DataFrame containing all ticker specific options data
     """
     my_options_data = pd.DataFrame()
     try:
         my_history_df = pd.read_csv(os.path.abspath(os.path.join(stock_data_path, stock_of_interest)) + ".csv")
         my_history_df["date"] = pd.to_datetime(my_history_df["date"])
     except FileNotFoundError:
-        raise SystemExit("Stock history for " + stock_of_interest + " not found! Unable to determine stock splits!")
+        raise SystemExit("Security history for " + stock_of_interest + " not found in path: " +
+                         os.path.abspath(os.path.join(stock_data_path, stock_of_interest)) + ".csv")
 
     # Nested loading of options data
     my_years = [year for year in os.listdir(option_data_path) if not year.startswith(".")]
@@ -137,7 +137,11 @@ def hist_option_data(stock_of_interest, stock_data_path, option_data_path, save_
             my_days = [day for day in os.listdir(os.path.join(option_data_path, year, month)) if
                        not day.startswith(".")]
             for day in tqdm(my_days, desc="day"):
-                daily_option_data = pd.read_csv(os.path.abspath(os.path.join(option_data_path, year, month, day)))
+                try:
+                    daily_option_data = pd.read_csv(os.path.abspath(os.path.join(option_data_path, year, month, day)))
+                except FileNotFoundError:
+                    raise SystemExit("Option data for " + stock_of_interest + " not found in path:" +
+                                     os.path.abspath(os.path.join(option_data_path, year, month, day)))
                 # Filtering for the right symbol
                 temp_data = daily_option_data[daily_option_data["Symbol"] == stock_of_interest]
                 # Dropping columns are reordering others
@@ -175,15 +179,62 @@ def hist_option_data(stock_of_interest, stock_data_path, option_data_path, save_
     my_options_data = my_options_data.sort_values(by=["date", "expiration date", "strike price"]).reset_index(drop=True)
 
     # Check data sources concur
-    for my_date in set(my_options_data["date"]):
+    for my_date in my_options_data["date"].unique():
         alpha_price = float(my_history_df[my_history_df["date"] == my_date]["close"])
         # noinspection PyTypeChecker
         if any(np.abs(
                 my_options_data[my_options_data["date"] == my_date]["underlying price"] - alpha_price) > error_thresh):
             raise SystemExit("Closing price in option data not consistent with locally stored version!")
 
+    return my_options_data
+
+
+def add_dividends(stock_of_interest, my_options_data, dividends_data_path, save_path):
+    """
+    This function appends the price contribution due to dividends for the "posting" and
+    "expiration" dates of each option. This allows us to be one step closer to working
+    with the "true" price of the security on those dates.
+
+    :param stock_of_interest: ticker symbol (string)
+    :param my_options_data: DataFrame containing all option data for specified ticker (pd.DataFrame)
+    :param dividends_data_path: path where dividend data is stored (str)
+    :param save_path: path to save final options data (str)
+    :return: None
+    """
+    # Load dividend data
+    try:
+        my_dividends_df = pd.read_csv(os.path.abspath(os.path.join(dividends_data_path, stock_of_interest)) + "_ts.csv")
+        my_dividends_df["date"] = pd.to_datetime(my_dividends_df["date"])
+    except FileNotFoundError:
+        raise SystemExit("Dividend data for " + stock_of_interest + " not found in path: " +
+                         os.path.abspath(os.path.join(dividends_data_path, stock_of_interest)) + "_ts.csv")
+
+    # Initialize empty containers
+    my_date_div = pd.Series()
+    my_exp_date_div = pd.Series()
+    # adding dividend contribution info to DataFrame
+    if all(my_dividends_df["amount"] == 0):
+        my_date_div = pd.Series(np.zeros(my_dividends_df.shape[0]))
+        my_exp_date_div = pd.Series(np.zeros(my_dividends_df.shape[0]))
+    else:
+        for my_date in sorted(my_options_data["date"].unique()):
+            temp_options_df = my_options_data[my_options_data["date"] == my_date]
+            date_div_price = float(my_dividends_df[my_dividends_df["date"] == my_date]["amount"])
+            my_date_div = my_date_div.append(pd.Series(np.ones(temp_options_df.shape[0]) * date_div_price)).reset_index(
+                drop=True)
+            for my_exp_date in sorted(temp_options_df["expiration date"].unique()):
+                exp_day_length = temp_options_df[temp_options_df["expiration date"] == my_exp_date].shape[0]
+                ex_date_div_price = float(my_dividends_df[my_dividends_df["date"] == my_exp_date]["amount"])
+                my_exp_date_div = my_exp_date_div.append(
+                    pd.Series(np.ones(exp_day_length) * ex_date_div_price)).reset_index(drop=True)
+
+    my_options_data["date div"] = my_date_div
+    my_options_data["exp date div"] = my_exp_date_div
+
+    # Save adjusted options data
     Path(save_path).mkdir(exist_ok=True)
     my_options_data.to_csv(path_or_buf=(os.path.abspath(os.path.join(save_path, stock_of_interest)) + ".csv"),
                            index=False)
-    print("All available option data for " + stock_of_interest + " has been aggregated and saved!")
+    print("All adjusted option data for " + stock_of_interest + " has been aggregated and saved to path: " +
+          os.path.abspath(os.path.join(save_path, stock_of_interest)) + ".csv")
     return
