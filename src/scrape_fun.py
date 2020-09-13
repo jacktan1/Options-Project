@@ -107,7 +107,7 @@ def retrieve_price_history(stock_of_interest, api_key, save_path):
     return my_history_df
 
 
-def hist_option_data(stock_of_interest, stock_data_path, option_data_path, error_thresh):
+def hist_option_data(stock_of_interest, stock_data_path, option_data_path):
     """
     This function aims to aggregate and adjust all option data for a given ticker.
     Adjustment is made based on historical splits. For example, had a stock undergone
@@ -118,13 +118,12 @@ def hist_option_data(stock_of_interest, stock_data_path, option_data_path, error
     :param stock_of_interest: ticker symbol (string)
     :param stock_data_path: path where daily closing stock prices are saved (string)
     :param option_data_path: path where all the option data files are stored (string)
-    :param error_thresh: margin of error allowed between Alphavantage and Discount Option Data (float)
     :return: my_options_data: DataFrame containing all ticker specific options data
     """
     my_options_data = pd.DataFrame()
     try:
         my_history_df = pd.read_csv(os.path.abspath(os.path.join(stock_data_path, stock_of_interest)) + ".csv")
-        my_history_df["date"] = pd.to_datetime(my_history_df["date"])
+        my_history_df["date"] = pd.to_datetime(my_history_df["date"]).dt.date
     except FileNotFoundError:
         raise SystemExit("Security history for " + stock_of_interest + " not found in path: " +
                          os.path.abspath(os.path.join(stock_data_path, stock_of_interest)) + ".csv")
@@ -145,21 +144,27 @@ def hist_option_data(stock_of_interest, stock_data_path, option_data_path, error
                 # Filtering for the right symbol
                 temp_data = daily_option_data[daily_option_data["Symbol"] == stock_of_interest]
                 # Dropping columns are reordering others
-                temp_data = temp_data.drop(columns=["optionkey", "Symbol"])[[
+                temp_data = temp_data.drop(columns=["optionkey", "Symbol", "UnderlyingPrice"])[[
                     "DataDate", "ExpirationDate", "PutCall", "StrikePrice", "AskPrice",
-                    "AskSize", "BidPrice", "BidSize", "LastPrice", "Volume", "openinterest", "UnderlyingPrice"]]
+                    "AskSize", "BidPrice", "BidSize", "LastPrice", "Volume", "openinterest"]]
                 # Change to datetime
-                temp_data["DataDate"] = pd.to_datetime(temp_data["DataDate"])
-                temp_adjustment_factor = float(
-                    my_history_df[my_history_df["date"] == temp_data["DataDate"].iloc[0]]["adjustment factor"])
-
+                temp_data["DataDate"] = pd.to_datetime(temp_data["DataDate"]).dt.date
+                temp_data["ExpirationDate"] = pd.to_datetime(temp_data["ExpirationDate"]).dt.date
+                if len(np.unique(temp_data["DataDate"])) == 1:
+                    temp_day = np.unique(temp_data["DataDate"])[0]
+                else:
+                    raise SystemExit("More than one unique day in each file! Discount Options Data seriously bugged :/")
+                # Retrieve adjustment factor and closing price
+                temp_df = my_history_df[my_history_df["date"] == temp_day][["adjustment factor", "close"]]
+                temp_adjustment_factor = float(temp_df["adjustment factor"])
+                temp_closing_price = float(temp_df["close"])
                 # Adjusting option data as needed
-                temp_data[["StrikePrice", "AskPrice", "BidPrice", "LastPrice", "UnderlyingPrice"]] = \
+                temp_data[["StrikePrice", "AskPrice", "BidPrice", "LastPrice"]] = \
                     temp_data[[
-                        "StrikePrice", "AskPrice", "BidPrice", "LastPrice", "UnderlyingPrice"]] / temp_adjustment_factor
+                        "StrikePrice", "AskPrice", "BidPrice", "LastPrice"]] / temp_adjustment_factor
                 temp_data[["AskSize", "BidSize", "Volume", "openinterest"]] = \
                     temp_data[["AskSize", "BidSize", "Volume", "openinterest"]] * temp_adjustment_factor
-
+                temp_data["closing price"] = temp_closing_price
                 # Append to DataFrame
                 my_options_data = my_options_data.append(temp_data).reset_index(drop=True)
 
@@ -174,18 +179,9 @@ def hist_option_data(stock_of_interest, stock_data_path, option_data_path, error
                                                       "BidSize": "bid size",
                                                       "LastPrice": "last price",
                                                       "openinterest": "open interest",
-                                                      "UnderlyingPrice": "underlying price",
                                                       "Volume": "volume"})
+
     my_options_data = my_options_data.sort_values(by=["date", "expiration date", "strike price"]).reset_index(drop=True)
-
-    # Check data sources concur
-    for my_date in my_options_data["date"].unique():
-        alpha_price = float(my_history_df[my_history_df["date"] == my_date]["close"])
-        # noinspection PyTypeChecker
-        if any(np.abs(
-                my_options_data[my_options_data["date"] == my_date]["underlying price"] - alpha_price) > error_thresh):
-            raise SystemExit("Closing price in option data not consistent with locally stored version!")
-
     return my_options_data
 
 
@@ -204,7 +200,7 @@ def add_dividends(stock_of_interest, my_options_data, dividends_data_path, save_
     # Load dividend data
     try:
         my_dividends_df = pd.read_csv(os.path.abspath(os.path.join(dividends_data_path, stock_of_interest)) + "_ts.csv")
-        my_dividends_df["date"] = pd.to_datetime(my_dividends_df["date"])
+        my_dividends_df["date"] = pd.to_datetime(my_dividends_df["date"]).dt.date
     except FileNotFoundError:
         raise SystemExit("Dividend data for " + stock_of_interest + " not found in path: " +
                          os.path.abspath(os.path.join(dividends_data_path, stock_of_interest)) + "_ts.csv")
@@ -214,8 +210,8 @@ def add_dividends(stock_of_interest, my_options_data, dividends_data_path, save_
     my_exp_date_div = pd.Series()
     # adding dividend contribution info to DataFrame
     if all(my_dividends_df["amount"] == 0):
-        my_date_div = pd.Series(np.zeros(my_dividends_df.shape[0]))
-        my_exp_date_div = pd.Series(np.zeros(my_dividends_df.shape[0]))
+        my_date_div = pd.Series(np.zeros(my_options_data.shape[0]))
+        my_exp_date_div = pd.Series(np.zeros(my_options_data.shape[0]))
     else:
         for my_date in sorted(my_options_data["date"].unique()):
             temp_options_df = my_options_data[my_options_data["date"] == my_date]
