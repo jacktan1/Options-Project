@@ -165,6 +165,16 @@ def hist_option_data(stock_of_interest, stock_data_path, option_data_path):
                 temp_data[["AskSize", "BidSize", "Volume", "openinterest"]] = \
                     temp_data[["AskSize", "BidSize", "Volume", "openinterest"]] * temp_adjustment_factor
                 temp_data["closing price"] = temp_closing_price
+                # Adding expiration date closing price, sort to ensure order not disturbed
+                temp_data = temp_data.sort_values(by="ExpirationDate").reset_index(drop=True)
+                exp_closing_df = pd.Series()
+                for exp_day in sorted(np.unique(temp_data["ExpirationDate"])):
+                    exp_closing_price = float(my_history_df[my_history_df["date"] == exp_day]["close"])
+                    exp_day_len = temp_data[temp_data["ExpirationDate"] == exp_day].shape[0]
+                    exp_closing_df = exp_closing_df.append(
+                        pd.Series(np.ones(exp_day_len) * exp_closing_price)).reset_index(drop=True)
+                # Add additional column
+                temp_data["exp closing price"] = exp_closing_df
                 # Append to DataFrame
                 my_options_data = my_options_data.append(temp_data).reset_index(drop=True)
 
