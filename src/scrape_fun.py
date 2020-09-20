@@ -107,7 +107,7 @@ def retrieve_price_history(stock_of_interest, api_key, save_path):
     return my_history_df
 
 
-def hist_option_data(stock_of_interest, stock_data_path, option_data_path):
+def hist_option_data(stock_of_interest, option_data_path, history_df):
     """
     This function aims to aggregate and adjust all option data for a given ticker.
     Adjustment is made based on historical splits. For example, had a stock undergone
@@ -116,17 +116,11 @@ def hist_option_data(stock_of_interest, stock_data_path, option_data_path):
     Function has to be modified depending on structure of options data.
 
     :param stock_of_interest: ticker symbol (string)
-    :param stock_data_path: path where daily closing stock prices are saved (string)
     :param option_data_path: path where all the option data files are stored (string)
-    :return: my_options_data: DataFrame containing all ticker specific options data
+    :param history_df: historical end of day prices for ticker (DataFrame)
+    :return: options_df: all ticker specific options data (DataFrame)
     """
-    my_options_data = pd.DataFrame()
-    try:
-        my_history_df = pd.read_csv(os.path.abspath(os.path.join(stock_data_path, stock_of_interest)) + ".csv")
-        my_history_df["date"] = pd.to_datetime(my_history_df["date"]).dt.date
-    except FileNotFoundError:
-        raise SystemExit("Security history for " + stock_of_interest + " not found in path: " +
-                         os.path.abspath(os.path.join(stock_data_path, stock_of_interest)) + ".csv")
+    options_df = pd.DataFrame()
 
     # Nested loading of options data
     my_years = [year for year in os.listdir(option_data_path) if not year.startswith(".")]
@@ -155,7 +149,7 @@ def hist_option_data(stock_of_interest, stock_data_path, option_data_path):
                 else:
                     raise SystemExit("More than one unique day in each file! Discount Options Data seriously bugged :/")
                 # Retrieve adjustment factor and closing price
-                temp_df = my_history_df[my_history_df["date"] == temp_day][["adjustment factor", "close"]]
+                temp_df = history_df[history_df["date"] == temp_day][["adjustment factor", "close"]]
                 temp_adjustment_factor = float(temp_df["adjustment factor"])
                 temp_closing_price = float(temp_df["close"])
                 # Adjusting option data as needed
@@ -165,44 +159,35 @@ def hist_option_data(stock_of_interest, stock_data_path, option_data_path):
                 temp_data[["AskSize", "BidSize", "Volume", "openinterest"]] = \
                     temp_data[["AskSize", "BidSize", "Volume", "openinterest"]] * temp_adjustment_factor
                 temp_data["closing price"] = temp_closing_price
-                # Adding expiration date closing price, sort to ensure order not disturbed
-                temp_data = temp_data.sort_values(by="ExpirationDate").reset_index(drop=True)
-                exp_closing_df = pd.Series()
-                for exp_day in sorted(np.unique(temp_data["ExpirationDate"])):
-                    exp_closing_price = float(my_history_df[my_history_df["date"] == exp_day]["close"])
-                    exp_day_len = temp_data[temp_data["ExpirationDate"] == exp_day].shape[0]
-                    exp_closing_df = exp_closing_df.append(
-                        pd.Series(np.ones(exp_day_len) * exp_closing_price)).reset_index(drop=True)
-                # Add additional column
-                temp_data["exp closing price"] = exp_closing_df
                 # Append to DataFrame
-                my_options_data = my_options_data.append(temp_data).reset_index(drop=True)
+                options_df = options_df.append(temp_data).reset_index(drop=True)
 
     # Renaming columns
-    my_options_data = my_options_data.rename(columns={"DataDate": "date",
-                                                      "ExpirationDate": "expiration date",
-                                                      "PutCall": "type",
-                                                      "StrikePrice": "strike price",
-                                                      "AskPrice": "ask price",
-                                                      "AskSize": "ask size",
-                                                      "BidPrice": "bid price",
-                                                      "BidSize": "bid size",
-                                                      "LastPrice": "last price",
-                                                      "openinterest": "open interest",
-                                                      "Volume": "volume"})
+    options_df = options_df.rename(columns={"DataDate": "date",
+                                            "ExpirationDate": "expiration date",
+                                            "PutCall": "type",
+                                            "StrikePrice": "strike price",
+                                            "AskPrice": "ask price",
+                                            "AskSize": "ask size",
+                                            "BidPrice": "bid price",
+                                            "BidSize": "bid size",
+                                            "LastPrice": "last price",
+                                            "openinterest": "open interest",
+                                            "Volume": "volume"})
 
-    my_options_data = my_options_data.sort_values(by=["date", "expiration date", "strike price"]).reset_index(drop=True)
-    return my_options_data
+    options_df = options_df.sort_values(by=["date", "expiration date", "strike price"]).reset_index(drop=True)
+    return options_df
 
 
-def add_dividends(stock_of_interest, my_options_data, dividends_data_path, save_path):
+def add_dividends(stock_of_interest, options_df, history_df, dividends_data_path, save_path):
     """
     This function appends the price contribution due to dividends for the "posting" and
     "expiration" dates of each option. This allows us to be one step closer to working
     with the "true" price of the security on those dates.
 
     :param stock_of_interest: ticker symbol (string)
-    :param my_options_data: DataFrame containing all option data for specified ticker (pd.DataFrame)
+    :param options_df: all option data for specified ticker (DataFrame)
+    :param history_df: historical end of day prices for ticker (DataFrame)
     :param dividends_data_path: path where dividend data is stored (str)
     :param save_path: path to save final options data (str)
     :return: None
@@ -218,29 +203,31 @@ def add_dividends(stock_of_interest, my_options_data, dividends_data_path, save_
     # Initialize empty containers
     my_date_div = pd.Series()
     my_exp_date_div = pd.Series()
+    my_exp_closing = pd.Series()
     # adding dividend contribution info to DataFrame
-    if all(my_dividends_df["amount"] == 0):
-        my_date_div = pd.Series(np.zeros(my_options_data.shape[0]))
-        my_exp_date_div = pd.Series(np.zeros(my_options_data.shape[0]))
-    else:
-        for my_date in sorted(my_options_data["date"].unique()):
-            temp_options_df = my_options_data[my_options_data["date"] == my_date]
-            date_div_price = float(my_dividends_df[my_dividends_df["date"] == my_date]["amount"])
-            my_date_div = my_date_div.append(pd.Series(np.ones(temp_options_df.shape[0]) * date_div_price)).reset_index(
-                drop=True)
-            for my_exp_date in sorted(temp_options_df["expiration date"].unique()):
-                exp_day_length = temp_options_df[temp_options_df["expiration date"] == my_exp_date].shape[0]
-                ex_date_div_price = float(my_dividends_df[my_dividends_df["date"] == my_exp_date]["amount"])
-                my_exp_date_div = my_exp_date_div.append(
-                    pd.Series(np.ones(exp_day_length) * ex_date_div_price)).reset_index(drop=True)
+    for my_date in sorted(options_df["date"].unique()):
+        temp_options_df = options_df[options_df["date"] == my_date]
+        date_div_price = float(my_dividends_df[my_dividends_df["date"] == my_date]["amount"])
+        my_date_div = my_date_div.append(pd.Series(np.ones(temp_options_df.shape[0]) * date_div_price)).reset_index(
+            drop=True)
+        for my_exp_date in sorted(temp_options_df["expiration date"].unique()):
+            exp_day_length = temp_options_df[temp_options_df["expiration date"] == my_exp_date].shape[0]
+            exp_day_div_price = float(my_dividends_df[my_dividends_df["date"] == my_exp_date]["amount"])
+            exp_day_closing_price = float(history_df[history_df["date"] == my_exp_date]["close"])
+            my_exp_date_div = my_exp_date_div.append(
+                pd.Series(np.ones(exp_day_length) * exp_day_div_price)).reset_index(drop=True)
+            my_exp_closing = my_exp_closing.append(
+                pd.Series(np.ones(exp_day_length) * exp_day_closing_price)).reset_index(drop=True)
 
-    my_options_data["date div"] = my_date_div
-    my_options_data["exp date div"] = my_exp_date_div
+    # Adding additional columns
+    options_df["exp date closing price"] = my_exp_closing
+    options_df["date div"] = my_date_div
+    options_df["exp date div"] = my_exp_date_div
 
     # Save adjusted options data
     Path(save_path).mkdir(exist_ok=True)
-    my_options_data.to_csv(path_or_buf=(os.path.abspath(os.path.join(save_path, stock_of_interest)) + ".csv"),
-                           index=False)
+    options_df.to_csv(path_or_buf=(os.path.abspath(os.path.join(save_path, stock_of_interest)) + ".csv"),
+                      index=False)
     print("All adjusted option data for " + stock_of_interest + " has been aggregated and saved to path: " +
           os.path.abspath(os.path.join(save_path, stock_of_interest)) + ".csv")
     return
