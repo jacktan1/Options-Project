@@ -19,14 +19,12 @@ This package is currently only concerned with the selling of options. In other w
   - *adjusted_options*: Adjusted historical option data obtained from Discount Option Data and used for training of model. Prices are end of day as indicated on their website.
 
 
-- **results**: This folder contains analyzed performance of different call and put option pairs for a given ticker on a given date.
-
-
-## Dependencies
-- python
-  - numpy
-  - pandas
-  - plotly
-  - numba
-  - questrade_api
-  - tqdm
+- **src**: 
+    - [*scrape_and_preprocess*](https://github.com/thejacktan/Options_Analysis/blob/master/src/scrape_and_preprocess.py): 
+        - Retrieves historical closing prices using Alpha Vantage.
+        - Adjusts for splits and estimates dividend contribution to closing price.
+    - [*scrape_options*](https://github.com/thejacktan/Options_Analysis/blob/master/src/scrape_options.py):
+        - Filter options data for specified ticker.
+        - Appends dividend contribution data.
+    - [*EDA*](https://github.com/thejacktan/Options_Analysis/blob/master/src/EDA.ipynb): 
+        - Exploratory data analysis and feature engineering of processed options data.
