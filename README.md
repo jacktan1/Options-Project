@@ -26,5 +26,5 @@ This package is currently only concerned with the selling of options. In other w
     - [*scrape_options*](https://github.com/thejacktan/Options_Analysis/blob/master/src/scrape_options.py):
         - Filter options data for specified ticker.
         - Appends dividend contribution data.
-    - [*EDA*](https://github.com/thejacktan/Options_Analysis/blob/master/src/EDA.ipynb): 
+    - [*EDA*](https://github.com/thejacktan/Options_Analysis/blob/master/src/EDA.ipynb) ([here](https://nbviewer.jupyter.org/github/thejacktan/Options_Analysis/blob/master/src/EDA.ipynb) if github is unable to load): 
         - Exploratory data analysis and feature engineering of processed options data.
