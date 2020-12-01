@@ -22,12 +22,12 @@ def get_current_price(stock_of_interest, questrade_instance, api_key):
         price = questrade_instance.markets_quote(stock_id)['quotes'][0]['lastTradePrice']
         if price is None:
             raise Exception
-    except:
+    except Exception:
         print("Could not retrieve price from Questrade API, attempting Alphavantage instead!")
         try:
             price = float(pd.read_json("https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=" +
                                        stock_of_interest + '&apikey=' + api_key).loc["05. price"])
-        except:
+        except Exception:
             print('Could not retrieve price from Alphavantage. Please ensure ticker symbol exists!')
             sys.exit(1)
     return price

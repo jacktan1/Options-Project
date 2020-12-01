@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from datetime import datetime
-import model_fun
+from src import model_fun
 from pathlib import Path
 
 
@@ -48,7 +48,7 @@ def extract_dividends(my_history, stock_of_interest, api_key, num_days_year):
         div_info['div_start'] = div_info['date']
         div_info = div_info.drop(['date'], axis=1)
         div_info = div_info[['div_start', 'dividend amount']]
-    except:
+    except Exception:
         if (alpha_next_div_date.date() < pd.to_datetime("today").date()) & (annual_div_amount > 0):
             raise Exception("No dividend payout but yet Alphavantage indicates Ex-Div date has passed?!")
 
@@ -103,7 +103,7 @@ def extract_dividends(my_history, stock_of_interest, api_key, num_days_year):
     try:
         div_info['div_end'] = pd.to_datetime(temp_end_dates)
         div_info = div_info[['div_start', 'div_end', 'dividend amount']]
-    except:
+    except Exception:
         pass
 
     # Stocks with dividend history
@@ -145,12 +145,12 @@ def extract_dividends(my_history, stock_of_interest, api_key, num_days_year):
             ratio = 1
             position = "middle"
 
-        # Grabbing indeces of start and end dates to plug into model
+        # Grabbing indices of start and end dates to plug into model
         start_index = my_history.loc[my_history['date'] == start_date].index.values.astype(int)[0]
 
         try:
             end_index = my_history.loc[my_history['date'] == end_date].index.values.astype(int)[0]
-        except:
+        except Exception:
             if end_date.date() == pd.to_datetime("today").date():
                 # Today should be 1 day after the most recent recorded history
                 end_index = my_history.shape[0]

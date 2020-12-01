@@ -1,4 +1,4 @@
-import scrape_fun
+from src import scrape_fun
 import os
 import pandas as pd
 

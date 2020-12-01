@@ -1,5 +1,5 @@
-import scrape_fun
-import preprocess_fun
+from src import scrape_fun
+from src import preprocess_fun
 import urllib
 from questrade_api import Questrade
 import os
@@ -30,12 +30,11 @@ except urllib.error.HTTPError:
     else:
         print("New Questrade token successfully saved!")
 
-
 my_ticker = str(input("Ticker you want to scrape data for: ")).upper()
 print("You have selected stock ticker: '" + my_ticker + "'")
 
 price = scrape_fun.get_current_price(stock_of_interest=my_ticker,
-                                     questrade_instance = q,
+                                     questrade_instance=q,
                                      api_key=alphaVan_token)
 
 my_history_df = scrape_fun.retrieve_price_history(stock_of_interest=my_ticker,

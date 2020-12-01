@@ -6,13 +6,13 @@ def dividend_pricing(num_days, amount, completeness, position):
     Function is used to calculate "priced in" dividends in
     daily historical prices. As no strict model is established
     for dividend pricing, this is my own interpretation on how the
-    dividend becomes priced in over the course of a quarter/annum
+    dividend becomes priced in over the course of a quarter/year
 
     :param num_days: the number of days in this dividend period (int)
     :param amount: amount paid for this dividend period (float)
     :param completeness: what ratio of the dividend amount is covered (float)
     :param position: where does this dividend lie (str)
-    :return: numpy series containing all dividend controbutions for time period
+    :return: numpy series containing all dividend contributions for time period
     """
     max_div = amount * completeness
 
@@ -40,7 +40,7 @@ def div_freq(ex_div_1, ex_div_2, num_days_year):
     :param ex_div_1: start date (datetime.datetime)
     :param ex_div_2: end date (datetime.datetime)
     :param num_days_year:number of business days in a year (int)
-    :return: the multipler value to be used against forward annual dividend rate (float)
+    :return: the multiplier value to be used against forward annual dividend rate (float)
     """
     time_gap = np.busday_count(begindates=ex_div_1.date(),
                                enddates=ex_div_2.date())
