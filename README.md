@@ -8,15 +8,18 @@ This package is currently only concerned with the selling of options. In other w
 
 ## Folders
 - **data**:
+  - *EDA*: Data saved as intermediary steps between various data explorations to benefit from modularity.
+    - "ticker_(calls/puts)_EDA1.csv" tracks change in open interest of call/put options. Filters out newly created and expired options.
+  
   - *adjusted_daily_closing*: Daily closing prices of various stock tickers obtained from Alpha Vantage adjusted for forward/reverse splits. To ensure training data remains constant, a local history is kept.
+  
+  - *adjusted_options*: Adjusted historical option data obtained from Discount Option Data and used for training of model. Prices are end of day as indicated on their website.
   
   - *dividends*: For each ticker symbol in local history, two files can be created.
       - "ticker.csv" contains the start and end dates of each dividend period, as well as amount paid. Note that "div_start" is the ex-dividend date for the previous dividend.
       - "ticker_ts.csv" contains the contribution to total price due to dividends as a time series. For each day on record, a dividend contribution is calculated.
       
   - *questrade_data*: Unadjusted option data scraped from Questrade API. Recorded prices may not represent "end of day" prices as snapshots are taken upon execution of scraping script.
-  
-  - *adjusted_options*: Adjusted historical option data obtained from Discount Option Data and used for training of model. Prices are end of day as indicated on their website.
 
 
 - **src**: 
@@ -26,5 +29,6 @@ This package is currently only concerned with the selling of options. In other w
     - [*scrape_options*](https://github.com/thejacktan/Options_Analysis/blob/master/src/scrape_options.py):
         - Filter options data for specified ticker.
         - Appends dividend contribution data.
-    - [*EDA*](https://github.com/thejacktan/Options_Analysis/blob/master/src/EDA.ipynb) ([here](https://nbviewer.jupyter.org/github/thejacktan/Options_Analysis/blob/master/src/EDA.ipynb) if github is unable to load): 
-        - Exploratory data analysis and feature engineering of processed options data.
+    - Exploratory Data Analysis
+      - [*EDA_1*](https://github.com/thejacktan/Options_Analysis/blob/master/src/EDA_1.ipynb) ([here](https://nbviewer.jupyter.org/github/thejacktan/Options_Analysis/blob/master/src/EDA_1.ipynb) if github is unable to load):
+        - Wrangling, filtering, processing, and visualization of adjusted options data. Tracks daily change in open interest.
