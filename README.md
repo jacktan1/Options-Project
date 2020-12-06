@@ -30,5 +30,7 @@ This package is currently only concerned with the selling of options. In other w
         - Filter options data for specified ticker.
         - Appends dividend contribution data.
     - Exploratory Data Analysis
-      - [*EDA_1*](https://github.com/thejacktan/Options_Analysis/blob/master/src/EDA_1.ipynb) ([here](https://nbviewer.jupyter.org/github/thejacktan/Options_Analysis/blob/master/src/EDA_1.ipynb) if github is unable to load):
+      - [*EDA pt. 1*](https://github.com/thejacktan/Options_Analysis/blob/master/src/EDA_1.ipynb) ([here](https://nbviewer.jupyter.org/github/thejacktan/Options_Analysis/blob/master/src/EDA_1.ipynb) if github is unable to load):
         - Wrangling, filtering, processing, and visualization of adjusted options data. Tracks daily change in open interest.
+      - [*EDA pt. 2*](https://github.com/thejacktan/Options_Analysis/blob/master/src/EDA_2.ipynb) / ([here](https://nbviewer.jupyter.org/github/thejacktan/Options_Analysis/blob/master/src/EDA_2.ipynb))
+        - Creation of novel features based off cleaned data, exploring predictive capabilities of such features.
