@@ -93,7 +93,9 @@ def retrieve_price_history(stock_of_interest, api_key, save_path):
         my_history_df = pd.concat([old_data, my_history_df], ignore_index=True).drop_duplicates().reset_index(drop=True)
         if len(my_history_df['date']) != len(set(my_history_df['date'])):
             # Discrepancies are appended to the end of the concatenation
-            print(my_history_df.tail())
+            my_history_df = my_history_df.sort_values(by=["date"])
+            print(my_history_df[my_history_df.duplicated(subset=["date"],
+                                                         keep=False)])
             raise Exception("Discrepancies between old and new files. This could be due to forward/reverse splits."
                             "Data not updated, please manually fix!")
         else:
