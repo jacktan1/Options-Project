@@ -10,7 +10,7 @@ if os.getcwd()[-3:] == "src":
 else:
     pass
 
-# User defined parameters
+# User defined parameters; AlphaVantage token can literally be anything
 alphaVan_token = 'U4G0AXZ62E77Z161'
 num_days_year = 252
 adjusted_daily_save_path = "data/adjusted_daily_closing/"
