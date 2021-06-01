@@ -12,12 +12,13 @@ We aim to use historical option and stock prices to create and evaluate the perf
         - Adjust for splits and estimates dividend contribution.
     - [**scrape_options**](https://github.com/thejacktan/Options_Analysis/blob/master/src/scrape_options.py):
         - Filter options data for specified ticker and append dividend data.
+    - [**greeks**](https://github.com/jacktan1/Options-Project/blob/master/src/greeks.ipynb) ([here](https://nbviewer.jupyter.org/github/thejacktan/Options_Analysis/blob/master/src/greeks.ipynb) if GitHub is unable to load)
+        - Derive Delta, Gamma and Theta using option spread data.
+        - Interpolate above greeks for strike prices in option spread.
     - **Exploratory Data Analysis**
-      - [**EDA pt. 1**](https://github.com/thejacktan/Options_Analysis/blob/master/src/EDA_1.ipynb) ([here](https://nbviewer.jupyter.org/github/thejacktan/Options_Analysis/blob/master/src/EDA_1.ipynb) if GitHub is unable to load)
+      - [**EDA pt. 1**](https://github.com/thejacktan/Options_Analysis/blob/master/src/EDA_1.ipynb) ([here](https://nbviewer.jupyter.org/github/thejacktan/Options_Analysis/blob/master/src/EDA_1.ipynb))
         - Wrangle, filter, process, and visualize adjusted options data. Visualization of open interest.
-      - [**greeks**](https://github.com/jacktan1/Options-Project/blob/master/src/greeks.ipynb) ([here](https://nbviewer.jupyter.org/github/thejacktan/Options_Analysis/blob/master/src/greeks.ipynb))
-        - Derive Delta, Gamma and Theta using option spread data. 
-      - [**EDA pt. 2**](https://github.com/thejacktan/Options_Analysis/blob/master/src/EDA_2.ipynb) / ([here](https://nbviewer.jupyter.org/github/thejacktan/Options_Analysis/blob/master/src/EDA_2.ipynb))
+      - [**EDA pt. 2**](https://github.com/thejacktan/Options_Analysis/blob/master/src/EDA_2.ipynb) ([here](https://nbviewer.jupyter.org/github/thejacktan/Options_Analysis/blob/master/src/EDA_2.ipynb))
         - Create features.
         - De-trend target with ARIMA. Ensure stationary using Augmented Dickey-Fuller test.
         - Baseline linear regression model.
@@ -26,7 +27,7 @@ We aim to use historical option and stock prices to create and evaluate the perf
 - **data**:
   - **EDA**: Data saved as intermediary steps between notebooks.
     - "{ticker}_(calls/puts)_EDA1.csv": Open interest of call/put options. Filters out newly created and expired options.
-    - "{ticker)_(calls/puts)_delta.csv": Delta values for calls/puts derived using data from option spread. See [greeks.ipynb](https://github.com/jacktan1/Options-Project/blob/master/src/greeks.ipynb) for detailed methods.
+    - "{ticker)_(calls/puts)_delta.csv": Delta values for calls/puts derived using data from option spread. See [greeks](https://github.com/jacktan1/Options-Project/blob/master/src/greeks.ipynb) for detailed methods.
   
   - **adjusted_daily_closing**: Daily closing prices of tickers obtained from Alpha Vantage. The "close" column prices have already been forward/reverse split adjusted. The "adjustment factor" column indicates the factor by which the raw unadjusted price was *divided* by.
   
