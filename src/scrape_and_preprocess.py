@@ -1,6 +1,5 @@
 from src import scrape_fun
 from src import preprocess_fun
-import urllib
 from questrade_api import Questrade
 import os
 
@@ -12,6 +11,7 @@ else:
 
 # User defined parameters; AlphaVantage token can literally be anything
 alphaVan_token = 'U4G0AXZ62E77Z161'
+# Number of days NYSE is open per year
 num_days_year = 252
 adjusted_daily_save_path = "data/adjusted_daily_closing/"
 q = Questrade()
@@ -20,8 +20,9 @@ q = Questrade()
 try:
     current_time = q.time
     print("Questrade API working successfully!")
-except urllib.error.HTTPError:
-    print("Login key has expired! Need to obtain new refresh token from 'questrade.com'!")
+except Exception as e:
+    # print("Login key has expired! Need to obtain new refresh token from 'questrade.com'!")
+    print(type(e))
     my_token = str(input("Refresh token from Questrade: "))
     q = Questrade(refresh_token=my_token)
     current_time = q.time
