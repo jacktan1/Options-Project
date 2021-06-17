@@ -10,7 +10,7 @@ else:
     pass
 
 # User defined parameters; AlphaVantage token can literally be anything
-alphaVan_token = 'U4G0AXZ62E77Z161'
+alphaVan_token = os.environ["ALPHAVANTAGE_KEY"]
 # Number of days NYSE is open per year
 num_days_year = 252
 adjusted_daily_save_path = "data/adjusted_daily_closing/"

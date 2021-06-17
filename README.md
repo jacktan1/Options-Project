@@ -1,9 +1,9 @@
 # Options Project
 
 ## Description
-We aim to design and evaluate the performance of various option pricing models.  [Alpha Vantage](https://www.alphavantage.co) and [Questrade API](https://www.questrade.com/api) retrieve historical and current stock prices, respectively. Latter also scrapes for real-time option spreads. [Discount Option Data](https://discountoptiondata.com) is used to obtain historical option spreads. [FRED](https://fred.stlouisfed.org/categories/115) is responsible for treasury yields.
+We aim to design and evaluate the performance of various option pricing models.  [Alpha Vantage](https://www.alphavantage.co) and [Questrade API](https://www.questrade.com/api) are used to retrieve historical and current stock prices (respectively). Latter also scrapes for real-time option spreads. [Discount Option Data](https://discountoptiondata.com) is used to obtain historical option spreads. [FRED](https://fred.stlouisfed.org/categories/115) is responsible for treasury yields.
 
-Users are responsible for obtaining their own API keys.
+No API keys stored inside repo files.
 
 ## Overview
 
@@ -19,7 +19,7 @@ Users are responsible for obtaining their own API keys.
     - Retrieve treasury yields from Federal Reserve Economic Data (FRED)
 
 - [**greeks.ipynb**](https://github.com/jacktan1/Options-Project/blob/master/src/greeks.ipynb) ([here](https://nbviewer.jupyter.org/github/thejacktan/Options_Analysis/blob/master/src/greeks.ipynb) if GitHub is unable to load)
-    - Derive Delta, Gamma and Theta using option spread data
+    - Derive Delta, Gamma and Theta using option spread and treasury yield data
     - Interpolate above greeks for strike prices in option spread
 
 - **Exploratory Data Analysis**
