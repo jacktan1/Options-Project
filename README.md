@@ -24,7 +24,7 @@ No API keys stored inside repo files.
 
 - **Exploratory Data Analysis**
     - [**EDA_1.ipynb**](https://github.com/thejacktan/Options_Analysis/blob/master/src/EDA_1.ipynb) ([here](https://nbviewer.jupyter.org/github/thejacktan/Options_Analysis/blob/master/src/EDA_1.ipynb))
-        - Wrangle, filter, process, and visualize adjusted options data
+        - Filter, process and create new features using option spread and dividend data
         - Visualization of open interest
     - [**EDA_2.ipynb**](https://github.com/thejacktan/Options_Analysis/blob/master/src/EDA_2.ipynb) ([here](https://nbviewer.jupyter.org/github/thejacktan/Options_Analysis/blob/master/src/EDA_2.ipynb))
         - Engineer novel features
