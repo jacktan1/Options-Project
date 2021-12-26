@@ -4,9 +4,11 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 
 
-def ts_decompose(ts, nlags: int, dates, ts_plot: bool = True, acf_plot: bool = True, pacf_plot: bool = True):
+def ts_decompose(ts, nlags: int, dates, ts_plot: bool = True, acf_plot: bool = True, pacf_plot: bool = True,
+                 y_label: str = "Adj. Closing"):
     """
 
+    :param y_label:
     :param dates:
     :param ts:
     :param nlags:
@@ -28,7 +30,7 @@ def ts_decompose(ts, nlags: int, dates, ts_plot: bool = True, acf_plot: bool = T
 
     plot_titles = []
     if ts_plot:
-        plot_titles.append("Daily Closing Price")
+        plot_titles.append(f"Daily {y_label}")
     if acf_plot:
         plot_titles.append("ACF")
     if pacf_plot:
@@ -45,7 +47,7 @@ def ts_decompose(ts, nlags: int, dates, ts_plot: bool = True, acf_plot: bool = T
         )
 
         my_fig.update_xaxes(title_text="Date", row=plot_num, col=1)
-        my_fig.update_yaxes(title_text="Closing Price", row=plot_num, col=1)
+        my_fig.update_yaxes(title_text=y_label, row=plot_num, col=1)
         plot_num += 1
 
     if acf_plot:

@@ -61,7 +61,9 @@ for my_ticker in tickers_dict:
         my_data = my_data.merge(old_data, how="outer",
                                 on=["date", "linear daily rate", "continuous daily rate"])
         if my_data.shape[0] > len(np.unique(my_data["date"])):
-            raise Exception("Inconsistency between old and new data!")
+            raise Exception("Inconsistency between new and old data!")
+        else:
+            print(f"Successfully appended new data onto old!")
     except FileNotFoundError:
         print(f"No local copy of {my_name} data found!")
 
