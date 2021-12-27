@@ -1,9 +1,9 @@
 # Options Project
 
 ## Description
-We aim to design and evaluate the performance of various option pricing models.  [Alpha Vantage](https://www.alphavantage.co) and [Questrade API](https://www.questrade.com/api) are used to retrieve historical and current stock prices (respectively). Latter also scrapes for real-time option spreads. [Discount Option Data](https://discountoptiondata.com) is used to obtain historical option spreads. [FRED](https://fred.stlouisfed.org/categories/115) is responsible for treasury yields.
+Aim to design and evaluate the performance of various option pricing models.  [Alpha Vantage](https://www.alphavantage.co) and [Questrade API](https://www.questrade.com/api) are used to retrieve historical and current stock prices (respectively). Latter also scrapes for real-time option spreads. [Discount Option Data](https://discountoptiondata.com) is used to obtain historical option spreads. [FRED](https://fred.stlouisfed.org/categories/115) is responsible for treasury yields.
 
-No API keys stored inside repo files.
+User needs to generate their own API keys.
 
 ## Overview
 
@@ -12,7 +12,7 @@ No API keys stored inside repo files.
     - Adjust for splits
     - Estimates dividend contribution to price
 
-- [**scrape_options.py**](https://github.com/thejacktan/Options_Analysis/blob/master/src/scrape_options.py):
+- [**preprocess_options.py**](https://github.com/thejacktan/Options_Analysis/blob/master/src/scrape_options.py):
     - Filter options data for specified ticker and append dividend data
 
 - [**scrape_treasury_yields.py**](https://github.com/thejacktan/Options_Analysis/blob/master/src/scrape_treasury_yields.py):
@@ -26,11 +26,11 @@ No API keys stored inside repo files.
     - [**EDA_1.ipynb**](https://github.com/thejacktan/Options_Analysis/blob/master/src/EDA_1.ipynb) ([here](https://nbviewer.jupyter.org/github/thejacktan/Options_Analysis/blob/master/src/EDA_1.ipynb))
         - Filter, process and create new features using option spread and dividend data
         - Visualization of open interest
-    - [**EDA_2.ipynb**](https://github.com/thejacktan/Options_Analysis/blob/master/src/EDA_2.ipynb) ([here](https://nbviewer.jupyter.org/github/thejacktan/Options_Analysis/blob/master/src/EDA_2.ipynb))
+    - [**EDA_2.ipynb**](https://github.com/thejacktan/Options_Analysis/blob/master/src/EDA_2.ipynb) ([here](https://nbviewer.jupyter.org/github/thejacktan/Options_Analysis/blob/master/src/EDA_2.ipynb) - images may not load)
         - Engineer novel features
         - De-trend target with ARIMA. Ensure stationary using Augmented Dickey-Fuller test
-        - Baseline linear regression model
-        - Principal component analysis (PCA) on features
+        - Baseline and multiple weighted linear regression
+        - Kendall Tau correlation on slope and intercept coefficients for above models
 
 ## Data
 
