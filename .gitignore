@@ -1,4 +1,9 @@
 .idea/
-data/discount_data/
 __pycache__/
 venv/
+
+# Folders too large
+data/adjusted_options
+data/EDA
+data/greeks
+data/options_data
