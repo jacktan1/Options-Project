@@ -1,18 +1,18 @@
+import logging
 import os
 import pandas as pd
-from src.preprocess_fun import adjust_option_data, add_dividends
+from pathlib import Path
+from src import preprocess_fun as pre
+import sys
 import time
 
-
-# For a given ticker, this script does the following:
-#   1. Filter all data for relevant options
-#   2. Adjusts relevant features for splits (e.g. strike price, open interest, etc.)
-#   3. Split data into two groups
-#       - options whose expiry has passed
-#       - ongoing options
-#   4. Attach closing prices for every option's data date (and expiry date if applicable)
-#   5. Attach priced-in dividend amount for every option's data and expiry dates
-#   6. Group options by year and save to separate files
+# For a given ticker, this script does:
+#   1. Read & filter all data for relevant options, remove duplicates if present.
+#   2. Remove error options propagated by splits.
+#   3. Adjust features by cumulative split (e.g. strike price, open interest, etc.)
+#   4. Attach priced in dividends for data & expiration dates. Correct error expiration dates.
+#   5. Attach end of day price for data & expiration dates. Group options into complete & incomplete.
+#   6. Aggregate complete, incomplete, and error options by year and write to disk.
 
 
 if __name__ == '__main__':
@@ -31,7 +31,27 @@ if __name__ == '__main__':
     dividends_data_path = f"data/dividends/{ticker}_ts.csv"
     save_path = f"data/adjusted_options/{ticker}/"
 
+    # Create save directory if not present
+    Path(save_path).mkdir(parents=True, exist_ok=True)
+
+    # Time script
     start_time = time.time()
+
+    # Set up logger
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+
+    fh = logging.FileHandler(filename=os.path.join(save_path, "preprocess.log"), mode="w")
+    fh.setLevel(logging.INFO)
+    ch = logging.StreamHandler(stream=sys.stdout)
+    ch.setLevel(logging.INFO)
+    log_format = logging.Formatter("%(levelname)s - %(message)s")
+
+    fh.setFormatter(log_format)
+    ch.setFormatter(log_format)
+
+    logger.addHandler(fh)
+    logger.addHandler(ch)
 
     # Load end of day prices
     try:
@@ -47,17 +67,45 @@ if __name__ == '__main__':
     except FileNotFoundError:
         raise SystemExit(f"Dividend data for {ticker} not found in path: {os.path.abspath(dividends_data_path)}")
 
-    # Aggregate, separate and add closing prices
-    options_df_list = adjust_option_data(stock_of_interest=ticker,
-                                         hist_closing_df=hist_closing_df,
+    # 1
+    options_dict_1 = pre.read_and_format(ticker=ticker,
                                          option_data_path=option_data_path,
-                                         save_path=save_path)
+                                         logger=logger)
 
-    # Add data and exp date dividends
-    add_dividends(stock_of_interest=ticker,
-                  options_df_list=options_df_list,
-                  dividends_df=dividends_df,
-                  save_path=save_path)
+    # 2
+    options_dict_2 = pre.remove_split_error_options(options_dict=options_dict_1,
+                                                    hist_closing_df=hist_closing_df,
+                                                    logger=logger)
 
-    end_time = time.time()
-    print(f"Finished processing {ticker} options data! Took {round(end_time - start_time, 2)} seconds!")
+    # 3
+    adjust_options_dict = pre.adjust_options(options_dict=options_dict_2,
+                                             hist_closing_df=hist_closing_df,
+                                             logger=logger)
+
+    options_dict_3 = adjust_options_dict["adj dict"]
+
+    errors_dict = adjust_options_dict["errors dict"]
+
+    # 4
+    options_dict_4 = pre.attach_dividends(options_dict=options_dict_3,
+                                          dividends_df=dividends_df,
+                                          logger=logger)
+
+    # 5
+    options_dict_5 = pre.attach_eod_prices(options_dict=options_dict_4,
+                                           hist_closing_df=hist_closing_df,
+                                           logger=logger)
+
+    complete_options_dict = options_dict_5["complete dict"]
+
+    incomplete_options_dict = options_dict_5["incomplete dict"]
+
+    # 6
+    pre.save_by_year(complete_dict=complete_options_dict,
+                     incomplete_dict=incomplete_options_dict,
+                     errors_dict=errors_dict,
+                     ticker=ticker,
+                     save_path=save_path,
+                     logger=logger)
+
+    logger.info(f"Processed {ticker} options data! - {round(time.time() - start_time, 2)} seconds total!")
