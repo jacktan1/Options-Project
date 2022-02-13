@@ -4,6 +4,6 @@ venv/
 
 # Folders too large
 data/adjusted_options
-data/EDA
+data/EDA1
 data/greeks
 data/options_data

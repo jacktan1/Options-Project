@@ -180,8 +180,9 @@ def remove_split_error_options(options_dict, hist_closing_df, logger):
 
 def adjust_options(options_dict, hist_closing_df, logger):
     """
-    Remove data dates without a historical closing price. For the remaining valid dates,
-    adjust option features based on cumulative split factor.
+    Remove data dates without historical closing prices. Check if sum
+    of volume is 0 on any data date. Adjust option features based on
+    cumulative split factor.
 
     :param options_dict: dictionary of date options (dict)
     :param hist_closing_df: historical end of day prices (DataFrame)
@@ -209,6 +210,10 @@ def adjust_options(options_dict, hist_closing_df, logger):
         options_dict.pop(date)
 
     for date in options_dict.keys():
+        # Sanity check
+        if options_dict[date]["volume"].sum() == 0:
+            logger.warning(f"Cumulative sum of volume on {date} is 0!")
+
         cumulative_adj_ratio = float(hist_closing_df[hist_closing_df["date"] == date]["adjustment factor"])
 
         options_dict[date][["strike price", "ask price", "bid price", "last price"]] = \
