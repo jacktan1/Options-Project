@@ -1,11 +1,12 @@
 from datetime import datetime, timedelta
 import numpy as np
+import os
 import pandas as pd
-import warnings
+import sys
 
 
 def calculate_dividends(ticker: str, api_key: str, hist_closing_df: pd.DataFrame,
-                        num_days_future: int):
+                        num_days_future: int, save_path: str, logger):
     """
     Creates 2 DataFrames
         1. Aggregates past dividend events. Finds the start date and amount of each dividend period.
@@ -21,6 +22,8 @@ def calculate_dividends(ticker: str, api_key: str, hist_closing_df: pd.DataFrame
     :param api_key: Alpha Vantage API token (str)
     :param hist_closing_df: Split adjusted historical ex-dates and amounts (pd.DataFrame)
     :param num_days_future: Number of days to infer past the last date of `hist_closing_df` (int)
+    :param save_path: Path used to save data (string)
+    :param logger: logger to record system outputs
     :return: {iv_events_df, div_ts_df} (dict)
     """
 
@@ -50,12 +53,13 @@ def calculate_dividends(ticker: str, api_key: str, hist_closing_df: pd.DataFrame
     if div_events_df.shape[0] == 0:
         # Sanity check
         if (annual_div > 0) & (next_div_date < datetime.now().date()):
-            raise Exception("Conflict between dividend history and next dividend date!")
+            logger.error("Next dividend date not valid!")
+            sys.exit(1)
 
         if next_div_date > np.max(hist_closing_df["date"]):
-            print(f"'{ticker}' has never paid dividends before! It's first ex-date will be on: {next_div_date}")
+            logger.info(f"'{ticker}' has never paid dividends before! It's first ex-date will be on: {next_div_date}")
         else:
-            print(f"'{ticker}' does not pay dividends and it never has!")
+            logger.info(f"'{ticker}' does not pay dividends and it never has!")
 
         # Assume that ticker will not pay dividends in the future
         div_events_df = div_events_df.append(
@@ -70,7 +74,7 @@ def calculate_dividends(ticker: str, api_key: str, hist_closing_df: pd.DataFrame
         div_events_df = pd.concat([div_events_df["div start"], div_events_df["dividend"]], axis=1)
 
         # Calculate upcoming dividend dates
-        next_divs_df = get_next_divs(div_events_df, next_div_date, annual_div, hist_closing_df, num_days_future)
+        next_divs_df = get_next_divs(div_events_df, next_div_date, annual_div, hist_closing_df, num_days_future, logger)
 
         # Combine past ex-dates with future ex-dates
         div_events_df = div_events_df.iloc[:-1, ].append(next_divs_df, ignore_index=True)
@@ -83,10 +87,14 @@ def calculate_dividends(ticker: str, api_key: str, hist_closing_df: pd.DataFrame
     # Create dividend time series from dividend events
     div_ts_df = create_ts(div_events_df, hist_closing_df)
 
-    return {"events": div_events_df, "ts": div_ts_df}
+    # Save
+    div_events_df.to_csv(path_or_buf=os.path.join(save_path, f"{ticker}_ex_dates.csv"), index=False)
+    div_ts_df.to_csv(path_or_buf=os.path.join(save_path, f"{ticker}_ts.csv"), index=False)
+
+    return
 
 
-def get_next_divs(div_events_df, next_div_date, annual_div, hist_closing_df, num_days_future):
+def get_next_divs(div_events_df, next_div_date, annual_div, hist_closing_df, num_days_future, logger):
     """
     Get dividend start dates (ex-dates) up to a user defined end date. Upcoming ex-date will be taken from
     Alpha Vantage if available, otherwise inferred. Additional ex-dates are always inferred.
@@ -98,11 +106,13 @@ def get_next_divs(div_events_df, next_div_date, annual_div, hist_closing_df, num
     end_date = np.max(hist_closing_df["date"]) + timedelta(days=num_days_future)
 
     # Sanity check
-    assert (div_events_df.shape[0] >= 2), "Should be at least 2 rows due to shifts!"
+    if div_events_df.shape[0] < 2:
+        logger.error("Should be at least 2 rows due to shifts!")
+        sys.exit(1)
 
     # Case: ticker has paid dividends before, but it is no longer paying dividends
     if next_div_date == datetime(1970, 1, 1).date():
-        print(f"Ticker no longer pays dividends")
+        logger.info(f"Ticker no longer pays dividends")
 
         next_divs_df = pd.DataFrame([[start_date, 0], [end_date, np.nan]],
                                     columns=["div start", "dividend"])
@@ -115,9 +125,9 @@ def get_next_divs(div_events_df, next_div_date, annual_div, hist_closing_df, num
 
             # Dividends hardly ever decrease, take max of the two
             if (annual_div / div_freq_year) < div_events_df["dividend"].iloc[-2]:
-                warnings.warn(
-                    f"Dividend decreased from {div_events_df['dividend'].iloc[-2]} to {(annual_div / div_freq_year)}!")
-                print(f"Using higher value ({div_events_df['dividend'].iloc[-2]}) instead!")
+                logger.warning(
+                    f"Dividend decreased from {div_events_df['dividend'].iloc[-2]} to {(annual_div / div_freq_year)}!\n"
+                    f"Using higher value ({div_events_df['dividend'].iloc[-2]}) instead!")
                 div_amount = div_events_df["dividend"].iloc[-2]
             else:
                 div_amount = annual_div / div_freq_year
@@ -275,7 +285,7 @@ def ts_model(hist_closing_df, start_date, end_date, div_amount):
         my_dates = list(dates_df["date"])
         my_dates.extend(dates_future)
 
-    # Case:dDividend start and end dates are within range of `hist_closing_df`
+    # Case: dividend start and end dates are within range of `hist_closing_df`
     else:
         my_div = ((np.arange(dates_df.shape[0]) + 1) / dates_df.shape[0]) * div_amount
 

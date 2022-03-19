@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from statsmodels.tsa.stattools import pacf
@@ -116,14 +117,29 @@ def voi_dividends_ts(input_dict):
     return my_fig
 
 
-def ts_decompose(ts, nlags: int, dates, ts_plot: bool = True, acf_plot: bool = True, pacf_plot: bool = True,
-                 y_label: str = "Adj. Closing"):
-    assert type(nlags) == int, "Number of lags must be an integer!"
-    assert type(ts_plot) == bool, "Whether to include a time series plot must be True or False!"
-    assert type(acf_plot) == bool, "Whether to include a ACF plot must be True or False!"
-    assert type(pacf_plot) == bool, "Whether to include a PACF plot must be True or False!"
+def ts_decompose(ts_df, min_year: int, max_year: int,
+                 lags: list, pacf_lag: int,
+                 ts_plot: bool = True, acf_plot: bool = True, pacf_plot: bool = True,
+                 y_label: str = "Adj. Close"):
+    """
+    Plot time-series, autocorrelation, and partial autocorrelation.
 
-    nlags = nlags
+    :param ts_df:
+    :param min_year:
+    :param max_year:
+    :param lags: Lags for ACF (list)
+    :param pacf_lag: Max lag for partial ACF (int)
+    :param ts_plot: Whether to include a time series plot (bool)
+    :param acf_plot: Whether to include an ACF plot (bool)
+    :param pacf_plot: Whether to include a PACF plot (bool)
+    :param y_label:
+    :return:
+    """
+
+    ts_df = ts_df.dropna()
+    ts_df.columns = ["date", "close"]
+    ts_df = ts_df[(pd.to_datetime(ts_df["date"]).dt.year >= min_year) &
+                  (pd.to_datetime(ts_df["date"]).dt.year <= max_year)].reset_index(drop=True)
 
     num_plots = ts_plot + acf_plot + pacf_plot
     if not num_plots:
@@ -141,9 +157,10 @@ def ts_decompose(ts, nlags: int, dates, ts_plot: bool = True, acf_plot: bool = T
                            subplot_titles=plot_titles)
     plot_num = 1
 
+    # Time series plot
     if ts_plot:
         my_fig.add_trace(
-            go.Scatter(x=dates.iloc[:len(ts)], y=ts, mode='lines'),
+            go.Scatter(x=ts_df["date"], y=ts_df["close"], mode='lines'),
             row=plot_num, col=1
         )
 
@@ -151,31 +168,31 @@ def ts_decompose(ts, nlags: int, dates, ts_plot: bool = True, acf_plot: bool = T
         my_fig.update_yaxes(title_text=y_label, row=plot_num, col=1)
         plot_num += 1
 
+    # ACF plot
     if acf_plot:
-        acf_mean = np.mean(ts)
-        acf_var = np.var(ts)
-        acf_arr = [1]
+        acf_df = pd.DataFrame(data=[[0, 1]], columns=["lag", "ACF"])
+        ts_mean = np.mean(ts_df["close"])
+        ts_var = np.var(ts_df["close"])
 
-        for n in range(1, nlags + 1):
-            my_cov = 0
-            for m in range(ts[:-n].shape[0]):
-                my_cov += (ts[:-n].iloc[m] - acf_mean) * (ts[n:].iloc[m] - acf_mean)
-            my_cov = my_cov / (ts.shape[0] * acf_var)
-            acf_arr.append(my_cov)
+        for n in lags:
+            my_cov = (np.average(np.array(ts_df["close"][:-n]) * np.array(ts_df["close"][n:]))
+                      - ts_mean**2) / ts_var
+            acf_df = acf_df.append({"lag": n, "ACF": my_cov}, ignore_index=True)
 
         my_fig.add_trace(
-            go.Bar(x=np.arange(int(nlags + 1)), y=acf_arr),
+            go.Bar(x=acf_df["lag"], y=acf_df["ACF"]),
             row=plot_num, col=1
         )
 
-        my_fig.update_xaxes(title_text="nlags", row=plot_num, col=1)
+        my_fig.update_xaxes(title_text="lags", row=plot_num, col=1)
         my_fig.update_yaxes(title_text="ACF", row=plot_num, col=1)
         plot_num += 1
 
+    # Partial ACF plot
     if pacf_plot:
-        my_pacf = pacf(ts, nlags)
+        my_pacf = pacf(ts_df["close"], pacf_lag)
         my_fig.add_trace(
-            go.Bar(x=np.arange(int(nlags + 1)), y=my_pacf),
+            go.Bar(x=np.arange(int(pacf_lag + 1)), y=my_pacf),
             row=plot_num, col=1
         )
         my_fig.update_xaxes(title_text="nlags", row=plot_num, col=1)
