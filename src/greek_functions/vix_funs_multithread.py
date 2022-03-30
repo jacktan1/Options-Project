@@ -1,176 +1,160 @@
+from common_funs_multithread import GreeksBase
 import numpy as np
 import pandas as pd
-import time
 
 
-def calc_vix(input_dict, rates_dict, num_days_year):
-    # Unpack
-    year_df = input_dict["df"]
-    year = input_dict["year"]
+class CalcVix(GreeksBase):
+    def __init__(self, input_dict):
+        super().__init__()
+        self.name = "VIX"
+        self.rates_dict = input_dict["rates_dict"]
+        self.parameters = ["vix"]
+        self.cols_input = ["date", "expiration date", "years to exp", "tag",
+                           "strike price", "ask price", "date close"]
+        self.cols_output_full = ["date", "expiration date", "tag",
+                                 "strike midpoint", "delta strike", "ask midpoint", "vix"]
 
-    # Housekeeping
-    vix_list = []
-    vix_full_list = []
-    start_time = time.time()
+    def run(self, input_dict):
+        # Unpack
+        year_df = input_dict["df"][self.cols_input]
+        year = input_dict["year"]
 
-    for date in list(set(year_df["date"])):
-        # date
-        df1 = year_df[year_df["date"] == date]
-        date_close = np.unique(df1["date close"])
+        # Housekeeping
+        full_vix_list = []
+        param_vix_list = []
 
-        vix_date = []
+        for date in list(set(year_df["date"])):
+            # date
+            self.date = date
+            df1 = year_df[year_df["date"] == date]
+            self.date_close = float(np.unique(df1["date close"]))
+            # Housekeeping
+            date_param_list = []
 
-        for exp_date in list(set(df1["expiration date"])):
-            # date + exp date
-            if date == exp_date:
-                continue
+            for exp_date in list(set(df1["expiration date"])):
+                # VIX undefined if time till expiry is 0. Skip
+                if date == exp_date:
+                    continue
 
-            df2 = df1[df1["expiration date"] == exp_date]
+                # date + exp date
+                self.exp_date = exp_date
+                df2 = df1[df1["expiration date"] == exp_date]
+                self.years_to_exp = float(np.unique(df2["years to exp"]))
 
-            years_to_exp = np.busday_count(date, exp_date) / num_days_year
+                exp_interest_rate = self.get_interest_rate()
 
-            exp_interest_rate = get_interest_rate(rates_dict=rates_dict,
-                                                  date=date,
-                                                  years_to_exp=years_to_exp)
+                for tag in ["call", "put"]:
+                    # date + exp date + tag
+                    self.tag = tag
+                    df3 = df2[df2["tag"] == tag].copy()
 
-            for tag in ["call", "put"]:
-                # date + exp date + tag
-                df3 = df2[df2["tag"] == tag].copy()
+                    df3["moneyness"] = df3["date close"] - df3["strike price"]
 
-                df3["moneyness"] = df3["date close"] - df3["strike price"]
+                    if self.tag == "put":
+                        df3["moneyness"] = -df3["moneyness"]
 
-                if tag == "put":
-                    df3["moneyness"] = -df3["moneyness"]
+                    # Get min ITM strike
+                    min_itm = np.min(df3[df3["moneyness"] >= 0]["moneyness"])
 
-                # Get min ITM strike
-                min_itm = np.min(df3[df3["moneyness"] >= 0]["moneyness"])
+                    # Get all OTM & the smallest ITM option
+                    df4 = df3[df3["moneyness"] <= min_itm].copy()
 
-                df4 = df3[df3["moneyness"] <= min_itm].copy()
+                    # Set upper bound of ITM strike price to ATM (closing price). Partial contribution
+                    df4.loc[(df4["moneyness"] == min_itm), "strike price"] = self.date_close
 
-                # Set upper bound of ITM strike price to ATM for calculation
-                df4.loc[(df4["moneyness"] == min_itm), "strike price"] = date_close
+                    df4["delta strike"] = df4["strike price"] - df4["strike price"].shift(periods=1)
 
-                df4["delta strike"] = df4["strike price"] - df4["strike price"].shift(periods=1)
+                    df4["ask midpoint"] = (df4["ask price"] + df4["ask price"].shift(periods=1)) / 2
 
-                df4["midpoint ask"] = (df4["ask price"] + df4["ask price"].shift(periods=1)) / 2
+                    df4["vix"] = ((df4["delta strike"] * df4["ask midpoint"] *
+                                   np.exp(exp_interest_rate * self.years_to_exp)) / self.date_close ** 2)
 
-                df4["vix"] = ((df4["delta strike"] * df4["midpoint ask"] * np.exp(exp_interest_rate * years_to_exp)) /
-                              date_close ** 2)
+                    # Only for full df
+                    df4["strike midpoint"] = (df4["strike price"] + df4["strike price"].shift(periods=1)) / 2
 
-                vix_sum = np.sum(df4["vix"].dropna()) / years_to_exp
+                    # Drop empty row from "shift" operation
+                    df4.dropna(inplace=True)
 
-                vix_date.append([date, exp_date, tag, years_to_exp, vix_sum])
+                    full_vix_list.append(df4[self.cols_output_full])
 
-        # Accumulated for all exp dates on date
-        vix_date_df = pd.DataFrame(vix_date, columns=["date", "expiration date", "tag", "years to exp", "vix"])
+                    # Sum of all VIX components to get final VIX value
+                    vix_sum = np.sum(df4["vix"].dropna()) / self.years_to_exp
 
-        vix_date_bins_df = bin_vix(vix_date_df=vix_date_df, date=date)
+                    date_param_list.append([self.date, self.exp_date, self.years_to_exp, self.tag, vix_sum])
 
-        vix_list.append(vix_date_bins_df)
+            # All VIX params for data date
+            date_df = pd.DataFrame(date_param_list,
+                                   columns=["date", "expiration date", "years to exp", "tag", "vix"])
 
-        vix_full_list.append(vix_date_df)
+            # Interpolate VIX at set intervals (1 month, 2 months, etc.)
+            date_vix_df = self.interpolate_intervals(date_df=date_df,
+                                                     parameters=self.parameters,
+                                                     date=self.date)
 
-    vix_df = pd.concat(vix_list)
+            param_vix_list.append(date_vix_df)
 
-    vix_df.sort_values(by=["date", "bin", "tag"], inplace=True, ignore_index=True)
+        # Create parameter / full DataFrames
+        param_vix_df = pd.concat(param_vix_list)
+        full_vix_df = pd.concat(full_vix_list)
 
-    vix_full_df = pd.concat(vix_full_list)
+        # Sort
+        param_vix_df.sort_values(by=["date", "interval", "tag"], inplace=True, ignore_index=True)
+        full_vix_df.sort_values(by=["date", "expiration date", "strike midpoint", "tag"],
+                                inplace=True, ignore_index=True)
 
-    vix_full_df.sort_values(by=["date", "expiration date", "tag"], inplace=True, ignore_index=True)
+        return {"name": self.name, "year": year,
+                "param df": param_vix_df, "full df": full_vix_df, "output_msg": self.output_msg}
 
-    print(f"VIX - {round(time.time() - start_time, 2)} seconds")
+    def get_interest_rate(self):
+        """
+        If the interest rate on dates t_0 and t_1 are f(t_0) and f(t_1), respectively.
+        The linear interpolation of interest rate on date t is:
 
-    return vix_df
+        f(t) = f(t_0) * ((t_1 - t)/(t_1 - t_0)) + f(t_1) * ((t - t_0)/(t_1 - t_0))
+        """
+        rate_keys = list(self.rates_dict.keys())
+        # For exp dates that expire within 1 month (a.k.a. no lower bound)
+        rate_keys.append(0)
 
+        t0 = np.max([n for n in rate_keys if n <= self.years_to_exp])
+        t1 = np.min([n for n in rate_keys if n > self.years_to_exp])
 
-def bin_vix(vix_date_df, date):
-    """
-    Bin VIX values of different expiration dates into standardized milestones.
-    Linear interpolation using two points closest to point of interest (x).
+        if pd.isna([t0, t1]).any():
+            raise Exception(f"Unable to interpolate interest rate! Lower bound: {t0} Upper bound: {t1}")
 
-    weighted_vix = vix_0*((t1-x)/(t1-t0)) + rix_1*((x-t0)/(t1-t0))
+        # Housekeeping
+        interest_rate = 0
 
-    milestones used:
-    - 1 month (1/12 year)
-    - 2 months (1/6)
-    - 3 months (1/4)
-    - 6 months (1/2)
-    - 1 year (1)
-    """
+        for t in [t0, t1]:
+            if t != 0:
+                # Interest rate DataFrame of time period chosen
+                df = self.rates_dict[t]
+                dates = list(df["date"])
 
-    output_list = []
+                # If unable to find rate for data date, interpolate
+                if self.date not in dates:
+                    # Get dates before and after data date
+                    date_0 = self.date
+                    date_1 = self.date
 
-    for n in [1 / 12, 1 / 6, 1 / 4, 1 / 2, 1]:
-        t0 = np.max(vix_date_df[vix_date_df["years to exp"] <= n]["years to exp"])
-        t1 = np.min(vix_date_df[vix_date_df["years to exp"] > n]["years to exp"])
+                    while date_0 not in dates:
+                        date_0 = pd.to_datetime(np.busday_offset(date_0, -1)).date()
 
-        if any(pd.isna([t0, t1])):
-            print(f"{n} skipped on date {date}")
-            output_list.extend([[date, n, "call", np.nan],
-                                [date, n, "put", np.nan]])
-            continue
+                    while date_1 not in dates:
+                        date_1 = pd.to_datetime(np.busday_offset(date_1, 1)).date()
 
-        for tag in ["call", "put"]:
-            vix_w = 0
-
-            for t in [t0, t1]:
-                vix_t = float(vix_date_df[(vix_date_df["years to exp"] == t) &
-                                          (vix_date_df["tag"] == tag)]["vix"].values)
-
-                if t == t0:
-                    vix_w = vix_w + vix_t * ((t1 - n) / (t1 - t0))
-                elif t == t1:
-                    vix_w = vix_w + vix_t * ((n - t0) / (t1 - t0))
-
-            output_list.append([date, n, tag, vix_w])
-
-    output_df = pd.DataFrame(output_list, columns=["date", "bin", "tag", "vix"])
-
-    return output_df
-
-
-def get_interest_rate(rates_dict, date, years_to_exp):
-    """
-    If the interest rate on dates t1 and t2 are r1 and r2, respectively.
-    The linear interpolation of interest rate on date x given that t1 <= x <= t2 is:
-
-    interest rate = r0*((t1-x)/(t1-t0)) + r1*((x-t0)/(t1-t0))
-    """
-    rate_keys = list(rates_dict.keys())
-    # For exp dates that expire within 1 month (a.k.a. no lower bound)
-    rate_keys.append(0)
-
-    t0 = np.max([n for n in rate_keys if n <= years_to_exp])
-    t1 = np.min([n for n in rate_keys if n > years_to_exp])
-
-    interest_rate = 0
-
-    for t in [t0, t1]:
-        if t != 0:
-            df = rates_dict[t]
-            dates = list(df["date"])
-
-            if date not in dates:
-                # Get dates before and after "date" to perform interpolation
-                date_0 = date
-                date_1 = date
-
-                while date_0 not in dates:
-                    date_0 = pd.to_datetime(np.busday_offset(date_0, -1)).date()
-
-                while date_1 not in dates:
-                    date_1 = pd.to_datetime(np.busday_offset(date_1, 1)).date()
-
-                rate_t = (float(df[df["date"] == date_0]["continuous rate"]) +
-                          float(df[df["date"] == date_1]["continuous rate"])) / 2
+                    rate_t = (float(df[df["date"] == date_0]["continuous rate"]) +
+                              float(df[df["date"] == date_1]["continuous rate"])) / 2
+                else:
+                    rate_t = float(df[df["date"] == self.date]["continuous rate"])
+            # If lower bound is 0
             else:
-                rate_t = float(df[df["date"] == date]["continuous rate"])
-        else:
-            rate_t = 0
+                rate_t = 0
 
-        if t == t0:
-            interest_rate = interest_rate + rate_t * ((t1 - years_to_exp) / (t1 - t0))
-        elif t == t1:
-            interest_rate = interest_rate + rate_t * ((years_to_exp - t0) / (t1 - t0))
+            # Add component contribution to total
+            if t == t0:
+                interest_rate = interest_rate + rate_t * ((t1 - self.years_to_exp) / (t1 - t0))
+            elif t == t1:
+                interest_rate = interest_rate + rate_t * ((self.years_to_exp - t0) / (t1 - t0))
 
-    return interest_rate
+        return interest_rate

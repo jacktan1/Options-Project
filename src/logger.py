@@ -3,7 +3,7 @@ import os
 import sys
 
 
-def initialize_logger(logger_name, save_path, file_name):
+def initialize_logger(logger_name, save_dir, file_name):
     # Set up logger
     logger = logging.getLogger(name=logger_name)
     logger.setLevel(logging.DEBUG)
@@ -11,7 +11,7 @@ def initialize_logger(logger_name, save_path, file_name):
     if len(file_name.split(".")) == 1:
         raise Exception("File name has no extension! Provide one (e.g. process.log)")
 
-    fh = logging.FileHandler(filename=os.path.join(save_path, file_name), mode="w")
+    fh = logging.FileHandler(filename=os.path.join(save_dir, file_name), mode="w")
     fh.setLevel(logging.INFO)
     ch = logging.StreamHandler(stream=sys.stdout)
     ch.setLevel(logging.INFO)

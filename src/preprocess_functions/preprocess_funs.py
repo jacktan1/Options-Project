@@ -339,7 +339,7 @@ def attach_eod_prices(options_dict, hist_closing_df, logger):
     return {"complete dict": complete_dict, "incomplete dict": incomplete_dict}
 
 
-def save_by_year(complete_dict, incomplete_dict, errors_dict, ticker, save_path, logger):
+def save_by_year(complete_dict, incomplete_dict, errors_dict, ticker, save_dir, logger):
     """
     For each of "complete", "incomplete", and "error" options, aggregate by
     year and save to appropriate directory.
@@ -348,7 +348,7 @@ def save_by_year(complete_dict, incomplete_dict, errors_dict, ticker, save_path,
     :param incomplete_dict: dictionary of incomplete options (dict)
     :param errors_dict: dictionary of error options (dict)
     :param ticker: ticker symbol (str)
-    :param save_path: path to save aggregated DataFrame (str)
+    :param save_dir: path to save aggregated DataFrame (str)
     :param logger: logger to record system outputs
     :return: None
     """
@@ -371,9 +371,9 @@ def save_by_year(complete_dict, incomplete_dict, errors_dict, ticker, save_path,
         for year in year_dict.keys():
             year_dict[year].sort_values(by=["date", "expiration date", "strike price"], inplace=True)
 
-            Path(os.path.join(save_path, year)).mkdir(exist_ok=True)
+            Path(os.path.join(save_dir, year)).mkdir(exist_ok=True)
             year_dict[year].to_csv(
-                path_or_buf=os.path.join(save_path, year, f"{ticker}_{year}_{n['type']}.csv"),
+                path_or_buf=os.path.join(save_dir, year, f"{ticker}_{year}_{n['type']}.csv"),
                 index=False)
 
     logger.info(f"Aggregating and saving data - {round(time.time() - start_time, 2)} seconds")

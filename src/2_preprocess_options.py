@@ -27,16 +27,16 @@ if __name__ == "__main__":
     option_data_path = "data/options_data/"
     stock_data_path = f"data/adj_close/{ticker}/{ticker}.csv"
     dividends_data_path = f"data/dividends/{ticker}/{ticker}_ts.csv"
-    save_path = f"data/adj_options/{ticker}/"
+    save_dir = f"data/adj_options/{ticker}/"
 
     # Create save directory if not present
-    Path(save_path).mkdir(parents=True, exist_ok=True)
+    Path(save_dir).mkdir(parents=True, exist_ok=True)
 
     # Time script
     start_time = time.time()
 
     # Set up logger
-    logger = initialize_logger(logger_name="preprocess", save_path=save_path,
+    logger = initialize_logger(logger_name="preprocess", save_dir=save_dir,
                                file_name="process.log")
 
     # Load end of day prices
@@ -91,7 +91,7 @@ if __name__ == "__main__":
                  incomplete_dict=incomplete_options_dict,
                  errors_dict=errors_dict,
                  ticker=ticker,
-                 save_path=save_path,
+                 save_dir=save_dir,
                  logger=logger)
 
     logger.info(f"Processed {ticker} options data! - Took {round(time.time() - start_time, 2)} seconds!")

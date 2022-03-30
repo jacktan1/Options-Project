@@ -1,3 +1,3 @@
-from .delta_funs_multithread import calc_delta
-from .gamma_funs_multithread import calc_gamma
-from .vix_funs_multithread import calc_vix
+from .delta_funs_multithread import CalcDelta
+from .gamma_funs_multithread import CalcGamma
+from .vix_funs_multithread import CalcVix
