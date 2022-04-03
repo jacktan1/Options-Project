@@ -48,9 +48,10 @@ class GreeksBase:
                     n_1 = np.min(df2[df2["years to exp"] > n]["years to exp"])
 
                     if pd.isna([n_0, n_1]).any():
-                        self.output_msg.append(f"Interpolate {self.name} intervals - "
-                                               f"(date: {date}, tag: {tag}, interval: {round(n, 6)} year) "
-                                               f"{param} skipped!")
+
+                        self.output_msg.append(f"{self.name} - "
+                                               f"(date: {date}, tag: {tag}, target: {round(n, 6)} year) - "
+                                               f"cannot interpolate {param}")
                         output_list.append([date, param, n, tag, np.nan])
                     else:
                         param_0 = float(df2[df2["years to exp"] == n_0][param].values)

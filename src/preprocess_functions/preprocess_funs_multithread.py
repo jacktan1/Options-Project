@@ -29,10 +29,11 @@ def read_and_format_multi(input_dict):
     # Format ticker to uppercase
     options_df["symbol"] = options_df["symbol"].str.upper()
 
-    # Change to datetime, option type to lowercase
+    # Change to datetime, option type to lowercase, negative volume to positive
     options_df["datadate"] = pd.to_datetime(options_df["datadate"]).dt.date
     options_df["expirationdate"] = pd.to_datetime(options_df["expirationdate"]).dt.date
     options_df["putcall"] = options_df["putcall"].str.lower()
+    options_df["volume"] = np.abs(options_df["volume"])
 
     # Remove true duplicates (Normally, if `split adjusted strike`==`error raw strike`, open interest shouldn't be same)
     options_df.drop_duplicates(subset=["optionkey", "openinterest"], keep="first",

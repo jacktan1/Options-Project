@@ -1,4 +1,5 @@
-from greek_functions import CalcDelta, CalcGamma, CalcVix
+from custom_features import CalcCustom
+from greeks import CalcDelta, CalcGamma, CalcVix
 from logger import initialize_logger
 import multiprocessing
 from multiprocessing.pool import Pool
@@ -8,13 +9,28 @@ import pandas as pd
 from pathlib import Path
 import time
 
+# For a given ticker, this script does:
+#   1. Calculate Deltas for all [data date, expiration date] call / put option spreads
+#       - Parameterize each call / put Delta "curve" via 3 parameters & interpolate parameters based on
+#      expiration dates at 1, 2, 3, 6 and 12 months constant maturity
+#           - Skew (when Delta == 0.5)
+#           - ITM spread (width of first ITM quartile)
+#           - OTM spread (width of first OTM quartile)
+#   2. Calculate Gammas based on Deltas (parameterization to be done)
+#   3. Calculate VIX (modified version of https://cdn.cboe.com/resources/vix/vixwhite.pdf#page=4) for all
+#      [data date, expiration date] call / put option spreads
+#       - Interpolate each call / put VIX value based on expiration dates at 1, 2, 3, 6 and 12 months constant maturity
+#   4. Calculate custom features using linear regression
+#       - Years until expiry (YTE) vs. adjusted moneyness ratio (7 models using different weights etc.)
+
+
 if __name__ == "__main__":
     # Ensure working directory path is correct
     while os.path.split(os.getcwd())[-1] != "Options-Project":
         os.chdir(os.path.dirname(os.getcwd()))
 
     # Select ticker
-    ticker = str(input("Ticker to calculate Greeks: ")).upper()
+    ticker = str(input("Ticker to generate model input features: ")).upper()
     print(f"Selected: {ticker}")
 
     # User defined parameters
@@ -26,7 +42,7 @@ if __name__ == "__main__":
 
     adj_options_path = f"data/adj_options/{ticker}"
     interest_rate_path = f"data/treasury_yields"
-    save_dir = f"data/Greeks/"
+    save_dir = f"data/model_params/"
 
     Path(save_dir).mkdir(parents=True, exist_ok=True)
 
@@ -49,7 +65,6 @@ if __name__ == "__main__":
     rates_dict = dict()
 
     # Options
-    # next(os.walk(adj_options_path))[1]
     for year in next(os.walk(adj_options_path))[1]:
         year_df = pd.DataFrame()
         for file in os.listdir(os.path.join(adj_options_path, year)):
@@ -145,16 +160,40 @@ if __name__ == "__main__":
     logger.info(f"Calculate VIX - {round(time.time() - start_time, 2)} seconds")
 
     #
+    # Custom features
+    #
+
+    start_time = time.time()
+
+    calculate_custom = CalcCustom()
+    # Group options into (date_0, date_1), (date_1, date_2), ... (date_n-1, date_n)
+    pairs_list = calculate_custom.group_date_pairs(options_input_list)
+    # Calculate change in open interest & fit linear models
+    custom_feat_list = my_pool.map(calculate_custom.run, pairs_list)
+    # Group day into year
+    output_list.append(calculate_custom.group_by_year([n["df"] for n in custom_feat_list]))
+
+    logger.info(f"Calculate custom features - {round(time.time() - start_time, 2)} seconds")
+
+    #
     # Log messages & save data
     #
 
     start_time = time.time()
 
+    # Log messages
     for metric in output_list:
         for year_dict in metric:
-            # Log messages if any
-            [logger.info(my_message) for my_message in year_dict["output_msg"]]
+            if "output_msg" in year_dict.keys():
+                # Log messages if any
+                [logger.info(my_message) for my_message in year_dict["output_msg"]]
 
+    for date_dict in custom_feat_list:
+        [logger.info(my_message) for my_message in date_dict["output_msg"]]
+
+    # Save parameters
+    for metric in output_list:
+        for year_dict in metric:
             metric_type = year_dict["name"]
 
             Path(os.path.join(save_dir, metric_type, ticker)).mkdir(parents=True, exist_ok=True)

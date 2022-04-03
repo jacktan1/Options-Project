@@ -1,4 +1,4 @@
-from common_funs_multithread import GreeksBase
+from base import GreeksBase
 import numpy as np
 import pandas as pd
 
@@ -15,6 +15,13 @@ class CalcVix(GreeksBase):
                                  "strike midpoint", "delta strike", "ask midpoint", "vix"]
 
     def run(self, input_dict):
+        """
+        TODO: Make function parallel at date level rather than year. Option spread size increased ~10x from 2005 to 2021
+
+        :param input_dict: {year_df, year}
+        :return: dict {name, year, param df, full df, output_msg}
+        """
+
         # Unpack
         year_df = input_dict["df"][self.cols_input]
         year = input_dict["year"]
@@ -22,6 +29,9 @@ class CalcVix(GreeksBase):
         # Housekeeping
         full_vix_list = []
         param_vix_list = []
+
+        # Flush output messages if class object is reused
+        self.output_msg = []
 
         for date in list(set(year_df["date"])):
             # date

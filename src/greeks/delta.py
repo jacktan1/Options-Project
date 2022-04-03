@@ -1,4 +1,4 @@
-from common_funs_multithread import GreeksBase
+from base import GreeksBase
 import numpy as np
 import pandas as pd
 
@@ -21,6 +21,13 @@ class CalcDelta(GreeksBase):
         self.moneyness_df = None
 
     def run(self, input_dict):
+        """
+        TODO: Make function parallel at date level rather than year. Option spread size increased ~10x from 2005 to 2021
+
+        :param input_dict: {year_df, year}
+        :return: dict {name, year, param df, full df, output_msg}
+        """
+
         # Unpack
         year_df = input_dict["df"][self.cols_input]
         year = input_dict["year"]
@@ -28,6 +35,9 @@ class CalcDelta(GreeksBase):
         # Housekeeping
         full_delta_list = []
         param_delta_list = []
+
+        # Flush output messages if class object is reused
+        self.output_msg = []
 
         for date in list(set(year_df["date"])):
             # date
@@ -113,30 +123,6 @@ class CalcDelta(GreeksBase):
         return {"name": self.name, "year": year,
                 "param df": param_delta_df, "full df": full_delta_df, "output_msg": self.output_msg}
 
-    def get_parameters(self, input_dict):
-        # Housekeeping
-        output_dict = dict()
-
-        if self.tag == "put":
-            [reference, lower, higher] = [-self.abs_reference, -self.abs_lower, -self.abs_higher]
-        else:
-            [reference, lower, higher] = [self.abs_reference, self.abs_lower, self.abs_higher]
-
-        # Sanity check
-        assert all([n in input_dict.keys() for n in [reference, lower, higher]])
-
-        # Calculate parameters
-        if "delta_reference_point" in self.parameters:
-            output_dict["delta_reference_point"] = input_dict[reference]
-
-        if "delta_otm_spread" in self.parameters:
-            output_dict["delta_otm_spread"] = input_dict[reference] - input_dict[lower]
-
-        if "delta_itm_spread" in self.parameters:
-            output_dict["delta_itm_spread"] = input_dict[higher] - input_dict[reference]
-
-        return output_dict
-
     def get_moneyness_ratios(self, df, abs_thresholds):
         # Housekeeping
         cand_0 = pd.Series()
@@ -202,9 +188,9 @@ class CalcDelta(GreeksBase):
 
             # Obtained upper & lower bound for threshold
             if pd.isna([cand_0, cand_1]).any():
-                self.output_msg.append(f"Calculate {self.name} threshold moneyness ratio - "
-                                       f"(data: {self.date}, exp date: {self.exp_date}, tag: {self.tag}) - "
-                                       f"fail on |threshold|: {i}")
+                self.output_msg.append(f"{self.name} - "
+                                       f"(data date: {self.date}, exp date: {self.exp_date}, tag: {self.tag}) - "
+                                       f"cannot interpolate |threshold|: {i} moneyness ratio")
                 threshold_moneyness = np.nan
 
             # Ideal case
@@ -255,3 +241,27 @@ class CalcDelta(GreeksBase):
             by="moneyness ratio", ascending=True).iloc[0, :]
 
         return n_0, n_1
+
+    def get_parameters(self, input_dict):
+        # Housekeeping
+        output_dict = dict()
+
+        if self.tag == "put":
+            [reference, lower, higher] = [-self.abs_reference, -self.abs_lower, -self.abs_higher]
+        else:
+            [reference, lower, higher] = [self.abs_reference, self.abs_lower, self.abs_higher]
+
+        # Sanity check
+        assert all([n in input_dict.keys() for n in [reference, lower, higher]])
+
+        # Calculate parameters
+        if "delta_reference_point" in self.parameters:
+            output_dict["delta_reference_point"] = input_dict[reference]
+
+        if "delta_otm_spread" in self.parameters:
+            output_dict["delta_otm_spread"] = input_dict[reference] - input_dict[lower]
+
+        if "delta_itm_spread" in self.parameters:
+            output_dict["delta_itm_spread"] = input_dict[higher] - input_dict[reference]
+
+        return output_dict

@@ -1,4 +1,4 @@
-from common_funs_multithread import GreeksBase
+from base import GreeksBase
 import pandas as pd
 
 
@@ -12,12 +12,22 @@ class CalcGamma(GreeksBase):
                                  "strike midpoint", "moneyness", "moneyness ratio", "adj moneyness", "Gamma"]
 
     def run(self, input_dict):
-        # Unpack
+        """
+        TODO: Make function parallel at date level rather than year. Option spread size increased ~10x from 2005 to 2021
+
+        :param input_dict: {year_df, year}
+        :return: dict {name, year, full df, output_msg}
+        """
+
+        # Unpack needed keys from Delta
         year_df = input_dict["full df"][self.cols_input]
         year = input_dict["year"]
 
         # Housekeeping
         full_gamma_list = []
+
+        # Flush output messages if class object is reused
+        self.output_msg = []
 
         for date in list(set(year_df["date"])):
             # date
