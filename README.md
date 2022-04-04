@@ -47,14 +47,14 @@ Users need to generate their own API keys. "Premium" Alpha Vantage key required 
         - **Theta** (future)
     
     - **4.2 - [Custom Features](https://github.com/jacktan1/Options-Project/blob/master/src/custom_features/custom_features.py)**
-      - Use daily change in open interest (**[methodology - EDA](https://github.com/jacktan1/Options-Project/blob/master/src/EDA_1.ipynb)**) and volume to parameterize option spreads via linear regression
+      - Use daily change in open interest ([methodology - EDA](https://github.com/jacktan1/Options-Project/blob/master/src/EDA_1.ipynb)) and volume to parameterize option spreads via linear regression
         - Call spread, put spread
         - Years until expiry vs. adjusted moneyness ratio (7 models)
 
     
-- **Step 5: Fit Models**
+- **[Step 5: Fit Models](https://github.com/jacktan1/Options-Project/blob/master/src/4_train_model.ipynb)**
     - Detrend target variable to be stationary (ARIMA, Augmented Dickey-Fuller)
-    - XGBoost (not done)
+    - XGBoost (currently on this)
 
 
 - **Step 6: Create Strategies**

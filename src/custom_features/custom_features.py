@@ -13,13 +13,13 @@ class CalcCustom:
 
         # Linear models to fit
         self.models = ["baseline", "sign",
-                       "oi_w", "volume_w", "price_w",
-                       "oi-price_w", "volume-price_w"]
+                       "doi", "volume", "price",
+                       "doi*price", "volume*price"]
 
         # Model param column names
         self.param_names = []
         for m in self.models:
-            self.param_names.extend([f"{m} slope", f"{m} intercept"])
+            self.param_names.extend([f"{m}_slope", f"{m}_intercept"])
 
         self.cols_output = ["date", "tag"] + self.param_names
 
@@ -210,31 +210,31 @@ class CalcCustom:
                             X=df_model[["years to exp"]],
                             y=df_model["adj moneyness ratio"] * df_model["oi sign"]
                         )
-                    elif m == "oi_w":
+                    elif m == "doi":
                         model = linear_model.LinearRegression().fit(
                             X=df_model[["years to exp"]],
                             y=df_model["adj moneyness ratio"] * df_model["oi sign"],
                             sample_weight=np.abs(df_model["delta interest"])
                         )
-                    elif m == "volume_w":
+                    elif m == "volume":
                         model = linear_model.LinearRegression().fit(
                             X=df_model[["years to exp"]],
                             y=df_model["adj moneyness ratio"] * df_model["oi sign"],
                             sample_weight=df_model["volume"]
                         )
-                    elif m == "price_w":
+                    elif m == "price":
                         model = linear_model.LinearRegression().fit(
                             X=df_model[["years to exp"]],
                             y=df_model["adj moneyness ratio"] * df_model["oi sign"],
                             sample_weight=df_model["ask price"]
                         )
-                    elif m == "oi-price_w":
+                    elif m == "doi*price":
                         model = linear_model.LinearRegression().fit(
                             X=df_model[["years to exp"]],
                             y=df_model["adj moneyness ratio"] * df_model["oi sign"],
                             sample_weight=np.abs(df_model["delta interest"] * df_model["ask price"])
                         )
-                    # volume-price_w
+                    # volume*price
                     else:
                         model = linear_model.LinearRegression().fit(
                             X=df_model[["years to exp"]],

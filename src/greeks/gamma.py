@@ -1,4 +1,4 @@
-from base import GreeksBase
+from greeks import GreeksBase
 import pandas as pd
 
 

@@ -52,14 +52,16 @@ class GreeksBase:
                         self.output_msg.append(f"{self.name} - "
                                                f"(date: {date}, tag: {tag}, target: {round(n, 6)} year) - "
                                                f"cannot interpolate {param}")
-                        output_list.append([date, param, n, tag, np.nan])
+
+                        param_weighted = np.nan
                     else:
                         param_0 = float(df2[df2["years to exp"] == n_0][param].values)
                         param_1 = float(df2[df2["years to exp"] == n_1][param].values)
 
-                        param_weighted = (param_0 * (n_1 - n) + param_1 * (n - n_0)) / (n_1 - n_0)
+                        param_weighted = round((param_0 * (n_1 - n) + param_1 * (n - n_0)) / (n_1 - n_0), 6)
 
-                        output_list.append([date, param, n, tag, param_weighted])
+                    # Add interpolated metric to list
+                    output_list.append([date, param, round(n, 4), tag, param_weighted])
 
         # Interpolated for all parameters
         output_df = pd.DataFrame(output_list, columns=["date", "parameter", "interval", "tag", "value"])
