@@ -25,8 +25,13 @@ if __name__ == "__main__":
     # Assumes that API key has been saved to env variable `FRED_API_KEY`
     fred = Fred()
     save_path = "data/treasury_yields/"
-    metrics_dict = {"DGS1": ["1_Year", 1], "DGS2": ["2_Year", 2], "DGS3": ["3_Year", 3], "DGS5": ["5_Year", 5],
-                    "DGS1MO": ["1_Month", 1 / 12], "DGS3MO": ["3_Month", 1 / 4], "DGS6MO": ["6_Month", 1 / 2],
+    metrics_dict = {"DGS1": ["1_Year", 1],
+                    "DGS2": ["2_Year", 2],
+                    "DGS3": ["3_Year", 3],
+                    "DGS5": ["5_Year", 5],
+                    "DGS1MO": ["1_Month", 1 / 12],
+                    "DGS3MO": ["3_Month", 1 / 4],
+                    "DGS6MO": ["6_Month", 1 / 2],
                     "T5YIE": ["5_Year_Inflation", 5]}
     # Create data directory if it doesn't exist
     Path(save_path).mkdir(exist_ok=True)
@@ -79,4 +84,4 @@ if __name__ == "__main__":
         # Save
         df.to_csv(os.path.join(save_path, f"{metric_name}.csv"), index=False)
 
-    logger.info(f"Processed treasury yields! - Took {round(time.time() - start_time, 2)} seconds!")
+    logger.info(f"Processed treasury yields - {round(time.time() - start_time, 2)} seconds")

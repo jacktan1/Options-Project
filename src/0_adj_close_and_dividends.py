@@ -35,7 +35,8 @@ if __name__ == "__main__":
 
     # Time adj close prices
     start_time = time.time()
-    adj_close_logger = initialize_logger(logger_name="adj_close", save_path=adj_close_save_path,
+    adj_close_logger = initialize_logger(logger_name="adj_close",
+                                         save_dir=adj_close_save_path,
                                          file_name="process.log")
 
     # Initializing Questrade Connection
@@ -64,11 +65,12 @@ if __name__ == "__main__":
                                         save_path=adj_close_save_path,
                                         logger=adj_close_logger)
 
-    adj_close_logger.info(f"Processed {ticker} adjusted close! - Took {round(time.time() - start_time, 2)} seconds!")
+    adj_close_logger.info(f"Processed {ticker} adjusted close - {round(time.time() - start_time, 2)} seconds")
 
     # Time dividends
     start_time = time.time()
-    dividends_logger = initialize_logger(logger_name="dividends", save_path=dividends_save_path,
+    dividends_logger = initialize_logger(logger_name="dividends",
+                                         save_dir=dividends_save_path,
                                          file_name="process.log")
 
     div_dict = calculate_dividends(ticker=ticker,
@@ -78,4 +80,4 @@ if __name__ == "__main__":
                                    save_path=dividends_save_path,
                                    logger=dividends_logger)
 
-    dividends_logger.info(f"Processed {ticker} dividends! - Took {round(time.time() - start_time, 2)} seconds!")
+    dividends_logger.info(f"Processed {ticker} dividends - {round(time.time() - start_time, 2)} seconds")

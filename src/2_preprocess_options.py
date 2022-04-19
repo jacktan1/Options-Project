@@ -94,4 +94,4 @@ if __name__ == "__main__":
                  save_dir=save_dir,
                  logger=logger)
 
-    logger.info(f"Processed {ticker} options data! - Took {round(time.time() - start_time, 2)} seconds!")
+    logger.info(f"Processed {ticker} options data - {round(time.time() - start_time, 2)} seconds")

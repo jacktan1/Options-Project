@@ -63,8 +63,8 @@ def read_and_format(ticker, option_data_path, logger):
 
 def remove_split_error_options(options_dict, hist_closing_df, logger):
     """
-    Identify presplit and split dates (if any). Calculate the split factor of each split.
-    Take snapshot of option spreads on the presplit dates. Adjust strikes by split factor.
+    Identify pre-split and split dates (if any). Calculate the split factor of each split.
+    Take snapshot of option spreads on the pre-split dates. Adjust strikes by split factor.
     Group date options by which split "section" they belong in. Pass on each section to have
     error options removed, and append cleaned date options into dict.
 
@@ -154,7 +154,7 @@ def remove_split_error_options(options_dict, hist_closing_df, logger):
                 else:
                     split_agg_dict[presplit_date] = {my_date: options_dict[my_date]}
 
-    # Convert presplit dictionary into list for each section to be processed in parallel
+    # Convert pre-split dictionary into list for each section to be processed in parallel
     for my_date in split_agg_dict.keys():
         input_list.append({"options dict": split_agg_dict[my_date],
                            "pre-split date": my_date,

@@ -1,4 +1,4 @@
-from custom_features import CalcCustom
+from custom_features import CalcCustomInputs
 from greeks import CalcDelta, CalcGamma, CalcVix
 from logger import initialize_logger
 import multiprocessing
@@ -165,7 +165,7 @@ if __name__ == "__main__":
 
     start_time = time.time()
 
-    calculate_custom = CalcCustom()
+    calculate_custom = CalcCustomInputs()
     # Group options into (date_0, date_1), (date_1, date_2), ... (date_n-1, date_n)
     pairs_list = calculate_custom.group_date_pairs(options_input_list)
     # Calculate change in open interest & fit linear models
