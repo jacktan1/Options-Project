@@ -31,7 +31,7 @@ prices, and treasury yields (respectively).
 
 
 - **[Step 4: Engineer Features](https://github.com/jacktan1/Options-Project/blob/master/src/3_model_features.py)**
-    - **4.1 - Greeks**
+    - **[4.1 - Greeks](https://github.com/jacktan1/Options-Project/tree/master/src/greeks)**
         - Calculate Greeks from clean option spread
         - **[Delta](https://github.com/jacktan1/Options-Project/blob/master/src/greeks/delta.py)**
             - For each of call & put, we parameterize: "skew", in-the-money (ITM) spread, out-of-the-money (OTM) spread
@@ -48,7 +48,7 @@ prices, and treasury yields (respectively).
 
     - **[4.2 - Custom Input Features](https://github.com/jacktan1/Options-Project/blob/master/src/custom_features/custom_inputs.py)**
         - Use daily change in open
-          interest ([methodology - EDA](https://github.com/jacktan1/Options-Project/blob/master/src/EDA_1.ipynb)) and
+          interest ([methodology - EDA](https://github.com/jacktan1/Options-Project/blob/master/EDA/EDA_1.ipynb)) and
           volume to parameterize options via linear regression
             - Years until expiry vs. adjusted moneyness ratio (7 variations on sample weights)
             - Call, put slopes and intercepts (2 parameters per variation)
@@ -59,10 +59,9 @@ prices, and treasury yields (respectively).
         - Fit separate sub-models that predict EOD price `[1, 5, 10, 15, 20, 40, 65, 90, 130, 260, 390, 520]` days out
         - Generate 2-dimensional probability density kernels (1 per sub-model) using multi-variate kernel density
           estimates
-
     - **Predict** - For each expiry date in test options data date:
-        - Use the two nearest sub-model kernels and their discrete predictions to linearly interpolate a 1-dimensional density plot
-
+        - Use the two nearest sub-model kernels and their discrete predictions to linearly interpolate a 1-dimensional
+          density plot
     - **Model Types**:
         - **[Baseline model](https://github.com/jacktan1/Options-Project/blob/master/src/4-0_baseline_model.ipynb)**
             - Simply uses previous day's EOD price as predictor for target
@@ -70,5 +69,3 @@ prices, and treasury yields (respectively).
         - **[XGBoost model - in progress](https://github.com/jacktan1/Options-Project/blob/master/src/4-2_xgboost_model.ipynb)**
             - De-trend target variable to be stationary (ARIMA, Augmented Dickey-Fuller)
             - XGBoost
-
-    
