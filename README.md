@@ -9,8 +9,6 @@ different vertical spread option strategies.
 and [FRED](https://fred.stlouisfed.org/categories/115) are used to retrieve historical stock prices, current stock
 prices, and treasury yields (respectively).
 
-"Premium" Alpha Vantage key required to get split information.
-
 ## Overview
 
 - **[Step 1: Closing price, splits and
@@ -48,20 +46,27 @@ prices, and treasury yields (respectively).
             - No parameterization yet (future)
         - **Theta** (future)
 
-    - **[4.2 - Custom Input Features](https://github.com/jacktan1/Options-Project/blob/master/src/custom_features/custom_features.py)**
-      - Use daily change in open interest ([methodology - EDA](https://github.com/jacktan1/Options-Project/blob/master/src/EDA_1.ipynb)) and volume to parameterize options via linear regression
-        - Years until expiry vs. adjusted moneyness ratio (7 models)
-        - Call, put slopes and intercepts (2 parameters per model)
+    - **[4.2 - Custom Input Features](https://github.com/jacktan1/Options-Project/blob/master/src/custom_features/custom_inputs.py)**
+        - Use daily change in open
+          interest ([methodology - EDA](https://github.com/jacktan1/Options-Project/blob/master/src/EDA_1.ipynb)) and
+          volume to parameterize options via linear regression
+            - Years until expiry vs. adjusted moneyness ratio (7 variations on sample weights)
+            - Call, put slopes and intercepts (2 parameters per variation)
 
 
-- **[Step 5: Fit Models](https://github.com/jacktan1/Options-Project/blob/master/src/models)**
-    - For each model type, generate independent sub-models that predict EOD
-      price `[1, 5, 10, 15, 20, 40, 65, 90, 130, 260, 390, 520]` days out
-    - Create 2-dimensional probability density plots using multi-variate kernel density estimates 
-    - Linear interpolation of 1-dimensional density plots generated from test set to evaluate model performance
-    - **Types**:
+- **[Step 5: Fit & Predict Models](https://github.com/jacktan1/Options-Project/blob/master/src/models)**
+    - **Fit** - For each model type:
+        - Fit separate sub-models that predict EOD price `[1, 5, 10, 15, 20, 40, 65, 90, 130, 260, 390, 520]` days out
+        - Generate 2-dimensional probability density kernels (1 per sub-model) using multi-variate kernel density
+          estimates
+
+    - **Predict** - For each expiry date in test options data date:
+        - Use the two nearest sub-model kernels and their discrete predictions to linearly interpolate a 1-dimensional density plot
+
+    - **Model Types**:
         - **[Baseline model](https://github.com/jacktan1/Options-Project/blob/master/src/4-0_baseline_model.ipynb)**
-            - Simply uses previous day's EOD price as predictor for next
+            - Simply uses previous day's EOD price as predictor for target
+        - Baseline model with target standardization and autoregression
         - **[XGBoost model - in progress](https://github.com/jacktan1/Options-Project/blob/master/src/4-2_xgboost_model.ipynb)**
             - De-trend target variable to be stationary (ARIMA, Augmented Dickey-Fuller)
             - XGBoost
