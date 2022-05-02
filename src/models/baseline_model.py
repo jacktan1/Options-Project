@@ -28,6 +28,7 @@ class BaselineModel:
 
     def train_test_split(self, input_df):
 
+        # Independent variable is only EOD price
         input_df = input_df[["date", "adj_close"]].copy()
 
         # Generate dependent variables (y)
@@ -36,6 +37,7 @@ class BaselineModel:
 
         input_df.dropna(inplace=True)
 
+        # Date duplicated in both train and test for easier indexing
         self.X_train, self.X_test, self.y_train, self.y_test = \
             train_test_split(input_df[["date", "adj_close"]],
                              input_df[(["date"] + [f"{lag}_actual" for lag in self.sub_model_lags])],
@@ -153,6 +155,8 @@ class BaselineModel:
         """
         Linearly interpolate PDFs of sub-models for actual expiration dates
 
+        TODO: Log all data dates where predictions can't be generated
+
         :param options_df: EOD option snapshots of test dates
         :return: None
         """
@@ -225,7 +229,9 @@ class BaselineModel:
 
     def interpolate_pdf(self, model_keys, date, days_to_exp):
         """
-        Linearly interpolate PDF on expiration date (days_to_exp) using the two models in model_keys
+        Linearly interpolate PDF on expiration date (days_to_exp, DOE) using the two models in model_keys
+
+        TODO: Interpolation may result in negative pdf value (if prediction DOE is too far from the 2 model DOEs)
 
         :param model_keys: the two sub-models closest to expiration date
         :param date: data date
