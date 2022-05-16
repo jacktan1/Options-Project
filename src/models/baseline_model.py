@@ -50,6 +50,7 @@ class BaselineModel:
 
         :return: None
         """
+
         self.pred_train = self.X_train.copy()
 
         # Naive predictor is just the EOD price
@@ -94,6 +95,7 @@ class BaselineModel:
 
         :return: fig (Figure)
         """
+
         # Variables
         all_model_keys = list(self.sub_models.keys())
         max_cols = 3
@@ -146,6 +148,7 @@ class BaselineModel:
 
         :return: None
         """
+
         # Naive predictor is just the EOD price
         self.pred_test = self.X_test.copy()
 

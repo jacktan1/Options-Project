@@ -16,6 +16,7 @@ def get_current_price(ticker: str, api_key: str, questrade_instance, logger):
     :param logger: logger to record system outputs
     :return: current price of the ticker (float)
     """
+
     try:
         stock_id = questrade_instance.symbols_search(prefix=ticker)['symbols'][0]['symbolId']
         price = questrade_instance.markets_quote(stock_id)['quotes'][0]['lastTradePrice']

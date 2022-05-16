@@ -178,6 +178,7 @@ def infer_div_freq(ex_div_1, ex_div_2):
     Infer frequency of dividends based on offset between two ex-dividend dates.
     Since offsets vary slightly (due to holidays etc.), ranges are used.
     """
+
     # Doesn't take holidays into account
     approx_day_diff = np.busday_count(begindates=ex_div_1,
                                       enddates=ex_div_2)
@@ -197,6 +198,7 @@ def get_first_div_start(div_events_df):
     """
     Infer start of the first dividend period from 2nd and 3rd start dates
     """
+
     my_offset = np.busday_count(begindates=div_events_df["div start"].loc[1],
                                 enddates=div_events_df["div start"].loc[2])
 
@@ -213,6 +215,7 @@ def create_ts(div_events_df, hist_closing_df):
     Get start and end dates of each dividend period, pass into function to create time series.
     Range: [min(hist_closing_df["date"]), np.max(div_events_df["div start"])]
     """
+
     ts_df = pd.DataFrame()
 
     for n in range(div_events_df.shape[0] - 1):
@@ -246,6 +249,7 @@ def ts_model(hist_closing_df, start_date, end_date, div_amount):
     Create dividend time series (freq = daily) given two neighbouring ex-dates.
     Takes into account situations where ex-date start or end outside `hist_closing_df["date"]` range.
     """
+
     hist_start = np.min(hist_closing_df["date"])
     hist_end = np.max(hist_closing_df["date"])
 
