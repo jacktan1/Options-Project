@@ -2,12 +2,15 @@
 
 ## Description
 
-**Goal:** Use Greeks and sentiment features derived from end-of-day (EOD) option snapshots to predict payout of
-different vertical spread option strategies.
+**Goal:** Use Greeks and sentiment features derived from end-of-day (EOD) option snapshots to predict performance of
+different option strategies (e.g. vertical spreads).
 
 [Alpha Vantage](https://www.alphavantage.co), [Questrade API](https://www.questrade.com/api),
 and [FRED](https://fred.stlouisfed.org/categories/115) are used to retrieve historical stock prices, current stock
 prices, and treasury yields (respectively).
+
+For more details, I have written an [article](https://www.linkedin.com/pulse/parameterizing-option-delta-curves-jack-tan)
+explaining the methodology use in section 4.1 below.
 
 ## Overview
 
