@@ -24,7 +24,7 @@ if __name__ == "__main__":
     # User defined parameters
     # Assumes that API key has been saved to env variable `FRED_API_KEY`
     fred = Fred()
-    save_path = "data/treasury_yields/"
+    save_dir = "data/model_params/treasury_yields/"
     metrics_dict = {"DGS1": ["1_Year", 1],
                     "DGS2": ["2_Year", 2],
                     "DGS3": ["3_Year", 3],
@@ -34,9 +34,9 @@ if __name__ == "__main__":
                     "DGS6MO": ["6_Month", 1 / 2],
                     "T5YIE": ["5_Year_Inflation", 5]}
     # Create data directory if it doesn't exist
-    Path(save_path).mkdir(exist_ok=True)
+    Path(save_dir).mkdir(exist_ok=True)
 
-    logger = initialize_logger(logger_name="treasury_yields", save_path=save_path, file_name="process.log")
+    logger = initialize_logger(logger_name="treasury_yields", save_dir=save_dir, file_name="process.log")
     start_time = time.time()
 
     for metric in metrics_dict.keys():
@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
         # Save
         try:
-            old_df = pd.read_csv(os.path.join(save_path, f"{metric_name}.csv"))
+            old_df = pd.read_csv(os.path.join(save_dir, f"{metric_name}.csv"))
             logger.info(f"Updating local {metric_name} file...")
             old_df["date"] = pd.to_datetime(old_df["date"]).dt.date
 
@@ -82,6 +82,6 @@ if __name__ == "__main__":
         df.sort_values(by="date", inplace=True)
 
         # Save
-        df.to_csv(os.path.join(save_path, f"{metric_name}.csv"), index=False)
+        df.to_csv(os.path.join(save_dir, f"{metric_name}.csv"), index=False)
 
     logger.info(f"Processed treasury yields - {round(time.time() - start_time, 2)} seconds")

@@ -16,12 +16,12 @@ class BullCallSpread:
         self.risk_scores_df = None
         self.no_risk_scores_df = None
         self.pl_df = None
-        self.cumu_date_df = None
+        self.cumul_date_df = None
         self.exp_date_df = None
 
     def get_scores(self, options_df, pred_pdf_df):
         """
-        1. Filter for option pairs for those with and without risk (min pl < 0 vs >=0, respectively)
+        1. Filter for option pairs for those with and without risk (min pl < 0 vs >= 0, respectively)
         2. Evaluate and select best `max_num_scores` "with risk" option pairs per [data date, expiration date]
         3. Calculate score ratio a given contract pair takes from the sum of all scores for that data date
         4. Calculate purchase ratio of that contract pair given score ratio and investment cost
@@ -112,7 +112,7 @@ class BullCallSpread:
         4. Group by expiration date to get total book and weighted average annum ROI
 
         :param date_close_df: Historical close prices
-        :param num_days_year: Number of days per year, used to annualize return
+        :param num_days_year: Number of days per year, used to get annualized return
         :return: None
         """
 
@@ -148,7 +148,7 @@ class BullCallSpread:
         # Group by data date to calculate cumulative book, realized return and ROI
         #
 
-        self.cumu_date_df = self.calc_cumu_date_roi()
+        self.cumul_date_df = self.calc_cumul_date_roi()
 
         #
         # Group by expiration date to get total book and weighted average annum ROI
@@ -268,7 +268,7 @@ class BullCallSpread:
 
         return pl_x
 
-    def calc_cumu_date_roi(self):
+    def calc_cumul_date_roi(self):
         """
         Group by data date to calculate cumulative book, realized return and ROI
 

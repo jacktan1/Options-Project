@@ -93,7 +93,7 @@ class BaselineModel:
         """
         Create heatmaps from KDEs of all sub-models
 
-        :return: fig (Figure)
+        :return: Image of probability density heatmaps of all sub models
         """
 
         # Variables
@@ -172,14 +172,11 @@ class BaselineModel:
         for date in self.pred_test["date"]:
             date_df = options_df[options_df["date"] == date]
 
-            # All valid models for date
-            date_model_keys = all_model_keys.copy()
+            # Get valid sub models for date
+            date_model_keys = [model_key for model_key in all_model_keys if
+                               self.test_pdf(model_key=model_key, date=date)]
 
-            # Inplace filter
-            date_model_keys[:] = [model_key for model_key in date_model_keys if
-                                  self.test_pdf(model_key=model_key, date=date)]
-
-            # If there are enough valid sub-models left
+            # If at least two valid sub models have been found
             if len(date_model_keys) >= 2:
                 # Expiration date
                 for exp_date in pd.unique(date_df["expiration date"]):
@@ -216,7 +213,10 @@ class BaselineModel:
         model = self.sub_models[model_key]
 
         # Prediction is the same regardless of model in this case
-        pred = float(self.pred_test[self.pred_test["date"] == date]["prediction"])
+        try:
+            pred = float(self.pred_test[self.pred_test["date"] == date]["prediction"])
+        except TypeError:
+            raise Exception(f"{date} is not in test predictions!")
 
         pred_list = [[pred, y] for y in model["pred_range"]]
 
@@ -232,12 +232,12 @@ class BaselineModel:
 
     def interpolate_pdf(self, model_keys, date, days_to_exp):
         """
-        Linearly interpolate PDF on expiration date (days_to_exp, DOE) using the two models in model_keys
+        Generate PDF on expiration date via linear interpolation using the two models in model_keys
 
         TODO: Interpolation may result in negative pdf value (if prediction DOE is too far from the 2 model DOEs)
 
-        :param model_keys: the two sub-models closest to expiration date
-        :param date: data date
+        :param model_keys: the two sub-models closest to expiration date [int, int]
+        :param date: date to make prediction on
         :param days_to_exp: days until expiration date
         :return: dict {"pred": raw prediction, "pdf": PDF of prediction,
                        "range": range of PDF, "bin_width": bin width of each bar in PDF}

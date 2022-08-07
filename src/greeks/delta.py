@@ -61,6 +61,7 @@ class CalcDelta(GreeksBase):
                     self.tag = tag
                     df3 = df2[df2["tag"] == tag].copy()
 
+                    # Calculate Delta values at midpoints
                     df3["Delta"] = ((df3["ask price"] - df3["ask price"].shift(periods=1)) /
                                     -(df3["strike price"] - df3["strike price"].shift(periods=1))).round(6)
 
@@ -125,8 +126,8 @@ class CalcDelta(GreeksBase):
 
     def get_moneyness_ratios(self, df, abs_thresholds):
         # Housekeeping
-        cand_0 = pd.Series()
-        cand_1 = pd.Series()
+        cand_0 = None
+        cand_1 = None
         necessary_columns = ["moneyness ratio", "Delta"]
         output_dict = dict()
 
