@@ -11,7 +11,7 @@ requests == 2.26.0
 
 # Models
 scikit-learn  == 1.0.2
-scipy == 1.8.0
+scipy == 1.10.0
 statsmodels == 0.13.2
 xgboost == 1.5.2
 
