@@ -7,7 +7,7 @@ pandas == 1.4.3
 # APIs
 fredapi == 0.5.0
 questrade-api == 1.0.3
-requests == 2.26.0
+requests == 2.31.0
 
 # Models
 scikit-learn  == 1.0.2
