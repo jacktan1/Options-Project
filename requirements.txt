@@ -10,7 +10,7 @@ questrade-api == 1.0.3
 requests == 2.31.0
 
 # Models
-scikit-learn  == 1.0.2
+scikit-learn  == 1.5.0
 scipy == 1.10.0
 statsmodels == 0.13.2
 xgboost == 1.5.2
